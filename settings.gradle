@@ -1,0 +1,48 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode = RepositoriesMode.PREFER_SETTINGS
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'VerniteYaku'
+
+// :core is pure Java. It always builds, on any machine, with no Android SDK.
+include ':core'
+
+// The Android-facing modules are only included when an Android SDK is actually
+// available. This keeps `./gradlew :core:test` working on a laptop that has
+// never had Android Studio installed -- which is the whole point of keeping the
+// math in a separate module.
+def sdkDir = System.getenv('ANDROID_HOME') ?: System.getenv('ANDROID_SDK_ROOT')
+if (sdkDir == null) {
+    def props = file('local.properties')
+    if (props.exists()) {
+        def p = new Properties()
+        props.withInputStream { p.load(it) }
+        sdkDir = p.getProperty('sdk.dir')
+    }
+}
+
+if (sdkDir != null && file(sdkDir).exists()) {
+    include ':ftc'
+    include ':TeamCode'
+} else {
+    gradle.startParameter.taskNames.each { t ->
+        if (t.contains('ftc') || t.contains('TeamCode')) {
+            throw new GradleException(
+                "No Android SDK found. Set ANDROID_HOME or create local.properties with sdk.dir=... " +
+                "to build :ftc and :TeamCode. (:core needs neither.)")
+        }
+    }
+    logger.lifecycle('VerniteYaku: no Android SDK found -- building :core only.')
+}

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "alliance-planner",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8712", "--directory", "tools/alliance-planner"],
+      "port": 8712
+    }
+  ]
+}

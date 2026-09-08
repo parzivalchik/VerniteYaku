@@ -1,0 +1,27 @@
+# VerniteYaku documentation
+
+| Guide | For |
+|---|---|
+| [Getting started](getting-started.md) | Adding the library to your project and running your first path |
+| [Paths](paths.md) | Building path chains: curves, headings, speed caps |
+| [Tuning](tuning.md) | Every constant, what it does, and what to set it to |
+| [Localization](localization.md) | Odometry, the EKF, and how vision will fold in |
+| [Commands](commands.md) | Sequencing an auto — optional, and how to skip it |
+| [Architecture](architecture.md) | How the layers fit together, for contributors |
+| [Migrating](migrating.md) | Coming from Pedro Pathing or Road Runner |
+| [Bring-up](../BRINGUP.md) | Getting this onto a real robot for the first time |
+
+API reference: `./gradlew :core:javadoc`, then open
+`core/build/docs/javadoc/index.html`.
+
+---
+
+## The two things to know before anything else
+
+**Coordinates are start-relative.** The origin is wherever the robot sits when
+the follower is constructed. `new Point(24, 0)` means "two feet ahead of where I
+started", not a fixed spot on the field. See [Paths](paths.md#coordinates).
+
+**Units are yours; angles are radians.** Every builder takes a `DistanceUnit` and
+converts at the boundary. Angles are always radians, with no unit switch — use
+`Math.toRadians()` at the call site.

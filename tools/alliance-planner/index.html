@@ -1,0 +1,1731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VerniteYaku Alliance Planner</title>
+<style>
+  :root {
+    --bg: #14161a;
+    --panel: #1c1f26;
+    --panel-2: #23272f;
+    --line: #333944;
+    --text: #e6e9ef;
+    --muted: #97a0b0;
+    --accent: #6ea8fe;
+    --r1: #f2734d;
+    --r2: #4dc3f2;
+    --danger: #ff5d5d;
+    --ok: #4ade80;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+    flex: 0 0 auto;
+  }
+  header h1 { font-size: 14px; margin: 0; font-weight: 600; letter-spacing: .01em; }
+  header .sub { color: var(--muted); font-size: 12px; }
+  header .spacer { flex: 1; }
+
+  main { flex: 1; display: flex; min-height: 0; }
+
+  #stage {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: #0f1114;
+  }
+  #canvasWrap { flex: 1; position: relative; min-height: 0; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  aside {
+    width: 340px;
+    flex: 0 0 340px;
+    border-left: 1px solid var(--line);
+    background: var(--panel);
+    overflow-y: auto;
+    padding: 12px;
+  }
+
+  .card {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+  .card h2 {
+    font-size: 12px;
+    margin: 0 0 8px;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .card h2 .dot {
+    display: inline-block; width: 8px; height: 8px;
+    border-radius: 50%; margin-right: 6px; vertical-align: baseline;
+  }
+
+  .row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .row label { flex: 0 0 88px; color: var(--muted); font-size: 12px; }
+  .row.tight label { flex: 0 0 60px; }
+
+  input[type=number], select, input[type=text] {
+    background: #14171d;
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 4px 6px;
+    font: inherit;
+    width: 100%;
+    min-width: 0;
+  }
+  input[type=number]:focus, select:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+
+  button {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 5px 9px;
+    font: inherit;
+    cursor: pointer;
+  }
+  button:hover { background: #2c313b; }
+  button.primary { background: var(--accent); color: #0d1117; border-color: var(--accent); font-weight: 600; }
+  button.primary:hover { filter: brightness(1.1); }
+  button.danger { color: var(--danger); }
+  button:disabled { opacity: .45; cursor: default; }
+
+  .seg {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 7px;
+    margin-bottom: 6px;
+    background: #191c22;
+  }
+  .seg.sel { border-color: var(--accent); }
+  .seg-head {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 6px; font-size: 12px;
+  }
+  .seg-head .idx { color: var(--muted); font-family: var(--mono); }
+  .seg-head .spacer { flex: 1; }
+  .cap-tag {
+    font-family: var(--mono); font-size: 10px; color: #ffcf7a;
+    border: 1px solid #5c4a26; border-radius: 3px; padding: 0 3px;
+  }
+  .seg-head button { padding: 2px 6px; font-size: 11px; }
+
+  #timeline {
+    flex: 0 0 auto;
+    border-top: 1px solid var(--line);
+    background: var(--panel);
+    padding: 8px 14px 10px;
+  }
+  .tl-controls { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .tl-controls .time { font-family: var(--mono); font-size: 12px; color: var(--muted); min-width: 130px; }
+  #scrub { flex: 1; }
+  #tlCanvas { width: 100%; height: 34px; display: block; border-radius: 4px; }
+
+  .verdict {
+    padding: 7px 9px; border-radius: 6px; font-size: 12px;
+    border: 1px solid var(--line); background: #191c22;
+  }
+  .verdict.clear { border-color: #2c5f3f; color: var(--ok); }
+  .verdict.hit { border-color: #6b2a2a; color: var(--danger); }
+  .verdict b { font-family: var(--mono); }
+
+  textarea {
+    width: 100%; height: 150px; background: #101318; color: var(--text);
+    border: 1px solid var(--line); border-radius: 6px; padding: 8px;
+    font: 11px/1.45 var(--mono); resize: vertical; white-space: pre;
+  }
+
+  .hint { color: var(--muted); font-size: 11px; line-height: 1.45; }
+  .kbd {
+    font-family: var(--mono); background: #101318; border: 1px solid var(--line);
+    border-radius: 3px; padding: 0 4px;
+  }
+  .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+  .tabs button { flex: 1; }
+  .tabs button.on { background: var(--accent); color: #0d1117; border-color: var(--accent); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>VerniteYaku Alliance Planner</h1>
+  <span class="sub">Two-robot path collision checking &middot; field inches, headings CCW</span>
+  <span class="spacer"></span>
+  <span class="sub" id="fps"></span>
+</header>
+
+<main>
+  <div id="stage">
+    <div id="canvasWrap"><canvas id="field"></canvas></div>
+    <div id="timeline">
+      <div class="tl-controls">
+        <button id="playBtn" class="primary">Play</button>
+        <button id="rewindBtn">Rewind</button>
+        <button id="undoBtn" title="Undo (Cmd/Ctrl+Z)" disabled>&#8630;</button>
+        <button id="redoBtn" title="Redo (Cmd/Ctrl+Shift+Z)" disabled>&#8631;</button>
+        <input type="range" id="scrub" min="0" max="1000" value="0">
+        <span class="time" id="timeLabel">0.00 s / 0.00 s</span>
+      </div>
+      <canvas id="tlCanvas"></canvas>
+    </div>
+  </div>
+
+  <aside>
+    <div class="card">
+      <h2>Collision</h2>
+      <div id="verdict" class="verdict">&mdash;</div>
+      <div class="row" style="margin-top:8px">
+        <label>Safety margin</label>
+        <input type="number" id="margin" value="0" step="0.5">
+      </div>
+      <div class="hint">
+        Footprints are inflated by this many inches on every side before testing,
+        so a plan that only just clears still reads as a hit.
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button id="tabR1" class="on">Robot 1</button>
+      <button id="tabR2">Robot 2</button>
+    </div>
+
+    <div class="card">
+      <h2><span class="dot" id="robotDot"></span><span id="robotTitle">Robot 1</span></h2>
+      <div class="row tight"><label>Start X</label><input type="number" id="sx" step="1"></div>
+      <div class="row tight"><label>Start Y</label><input type="number" id="sy" step="1"></div>
+      <div class="row tight"><label>Heading&deg;</label><input type="number" id="sh" step="5"></div>
+      <div class="row tight"><label>Length</label><input type="number" id="rlen" step="0.5"></div>
+      <div class="row tight"><label>Width</label><input type="number" id="rwid" step="0.5"></div>
+      <div class="hint">
+        Start pose is in field coordinates. Everything downstream of it &mdash; the
+        whole path &mdash; is stored relative to it, which is the frame the Java
+        library actually uses. Drag the robot to move the plan; drag the ring to spin it.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Motion</h2>
+      <div class="row tight"><label>Max vel</label><input type="number" id="mv" step="1"></div>
+      <div class="row tight"><label>Max accel</label><input type="number" id="ma" step="1"></div>
+      <div class="row tight"><label>Max decel</label><input type="number" id="md" step="1"></div>
+      <div class="row tight"><label>Delay</label><input type="number" id="delay" step="0.1"></div>
+      <div class="hint">
+        Same trapezoidal profile the follower runs, so the timeline reflects when
+        each robot is actually somewhere &mdash; not just where its path goes.
+        Delay is dead time before this robot starts moving.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Segments</h2>
+      <div id="segList"></div>
+      <div class="btn-row" style="margin-top:8px">
+        <button id="addLine">+ Line</button>
+        <button id="addCurve">+ Curve</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Export</h2>
+      <div class="tabs">
+        <button id="tabJava" class="on">Java</button>
+        <button id="tabJson">JSON</button>
+      </div>
+      <textarea id="exportBox" readonly spellcheck="false"></textarea>
+      <div class="btn-row" style="margin-top:6px">
+        <button id="copyBtn">Copy</button>
+        <button id="saveBtn" class="primary">Save plan&hellip;</button>
+        <button id="loadBtn">Open plan&hellip;</button>
+        <button id="resetBtn" class="danger">Reset</button>
+      </div>
+      <input type="file" id="fileInput" accept=".json,application/json" hidden>
+      <div class="hint" style="margin-top:6px">
+        Plans save as <code>.json</code>. You can also drop one onto the field.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Controls</h2>
+      <div class="hint">
+        <span class="kbd">drag</span> a handle to move it &middot;
+        <span class="kbd">space</span> play/pause &middot;
+        <span class="kbd">&larr;</span><span class="kbd">&rarr;</span> step one frame &middot;
+        <span class="kbd">scroll</span> zoom &middot;
+        <span class="kbd">drag background</span> pan &middot;
+        <span class="kbd">&#8984;/ctrl+Z</span> undo &middot;
+        <span class="kbd">&#8984;/ctrl+S</span> save
+      </div>
+    </div>
+  </aside>
+</main>
+
+<script>
+"use strict";
+
+/* ==========================================================================
+   Geometry and path math.
+
+   This mirrors com.verniteyaku.pathing on purpose: the same de Casteljau
+   evaluation, the same 200-sample arc-length table, the same trapezoidal
+   profile. A plan made here is only useful if the robot actually moves the way
+   the tool predicted, and that only holds if both run the same math.
+   ========================================================================== */
+
+const ARC_SAMPLES = 200;
+const TWO_PI = Math.PI * 2;
+
+function normalizeAngle(a) {
+  a = a % TWO_PI;
+  if (a > Math.PI) a -= TWO_PI;
+  else if (a <= -Math.PI) a += TWO_PI;
+  return a;
+}
+
+function lerpShortest(start, end, t) {
+  return normalizeAngle(start + normalizeAngle(end - start) * t);
+}
+
+function rotate(x, y, a) {
+  const c = Math.cos(a), s = Math.sin(a);
+  return { x: x * c - y * s, y: x * s + y * c };
+}
+
+/** A Bezier of arbitrary degree over control points [{x,y}, ...]. */
+class BezierPath {
+  constructor(points) {
+    this.points = points;
+    this.d1 = BezierPath.derivativePoints(points);
+    this.d2 = BezierPath.derivativePoints(this.d1);
+    this.buildArcTable();
+  }
+
+  static derivativePoints(pts) {
+    const n = pts.length - 1;
+    if (n < 1) return [{ x: 0, y: 0 }];
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      out.push({ x: (pts[i + 1].x - pts[i].x) * n, y: (pts[i + 1].y - pts[i].y) * n });
+    }
+    return out;
+  }
+
+  static deCasteljau(pts, t) {
+    if (pts.length === 1) return { x: pts[0].x, y: pts[0].y };
+    const s = pts.map(p => ({ x: p.x, y: p.y }));
+    for (let level = s.length - 1; level > 0; level--) {
+      for (let i = 0; i < level; i++) {
+        s[i].x = s[i].x * (1 - t) + s[i + 1].x * t;
+        s[i].y = s[i].y * (1 - t) + s[i + 1].y * t;
+      }
+    }
+    return s[0];
+  }
+
+  buildArcTable() {
+    this.cum = new Float64Array(ARC_SAMPLES + 1);
+    let running = 0;
+    let prev = this.point(0);
+    for (let i = 1; i <= ARC_SAMPLES; i++) {
+      const cur = BezierPath.deCasteljau(this.points, i / ARC_SAMPLES);
+      running += Math.hypot(cur.x - prev.x, cur.y - prev.y);
+      this.cum[i] = running;
+      prev = cur;
+    }
+    this.length = running;
+  }
+
+  point(t) { return BezierPath.deCasteljau(this.points, Math.max(0, Math.min(1, t))); }
+  derivative(t) { return BezierPath.deCasteljau(this.d1, Math.max(0, Math.min(1, t))); }
+
+  tAtArcLength(s) {
+    if (s <= 0 || this.length < 1e-9) return 0;
+    if (s >= this.length) return 1;
+    let lo = 0, hi = ARC_SAMPLES;
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (this.cum[mid] <= s) lo = mid; else hi = mid;
+    }
+    const span = this.cum[hi] - this.cum[lo];
+    const frac = span < 1e-12 ? 0 : (s - this.cum[lo]) / span;
+    return (lo + frac) / ARC_SAMPLES;
+  }
+
+  tangentAngle(t) {
+    const d = this.derivative(t);
+    if (Math.hypot(d.x, d.y) < 1e-9) {
+      const back = this.derivative(Math.max(0, t - 1e-3));
+      return Math.atan2(back.y, back.x);
+    }
+    return Math.atan2(d.y, d.x);
+  }
+}
+
+/** Heading for a segment, matching the library's HeadingInterpolator options. */
+function segmentHeading(seg, path, t) {
+  switch (seg.headingMode) {
+    case "constant": return normalizeAngle(seg.headingA);
+    case "linear": return lerpShortest(seg.headingA, seg.headingB, t);
+    case "reverseTangent": return normalizeAngle(path.tangentAngle(t) + Math.PI);
+    default: return path.tangentAngle(t);
+  }
+}
+
+/**
+ * Velocity-constrained profile. Mirrors ConstrainedProfile.java: a
+ * forward-backward sweep over a velocity ceiling that varies along the path.
+ *
+ * The forward pass enforces "you cannot speed up faster than the robot can".
+ * The backward pass enforces "you must already be braking before the slow bit",
+ * which is what stops a per-segment cap from being met by impossible braking at
+ * the boundary.
+ *
+ * This has to stay in step with the Java class of the same name. The timeline is
+ * only worth looking at if it predicts what the robot will actually do.
+ */
+class ConstrainedProfile {
+  constructor(distance, limitAt, accel, decel) {
+    this.distance = Math.max(0, distance);
+
+    if (this.distance < 1e-9) {
+      this.step = 0; this.v = [0]; this.t = [0]; this.duration = 0; this.peak = 0;
+      return;
+    }
+
+    const TARGET_STEP = 0.25;
+    let samples = Math.ceil(this.distance / TARGET_STEP);
+    samples = Math.max(32, Math.min(4000, samples));
+    this.step = this.distance / samples;
+
+    const v = new Float64Array(samples + 1);
+    for (let i = 0; i <= samples; i++) {
+      const ceiling = limitAt(i * this.step);
+      v[i] = (Number.isFinite(ceiling) && ceiling > 1e-3) ? ceiling : 1e-3;
+    }
+
+    v[0] = 0;
+    for (let i = 1; i <= samples; i++) {
+      v[i] = Math.min(v[i], Math.sqrt(v[i - 1] * v[i - 1] + 2 * accel * this.step));
+    }
+
+    v[samples] = 0;
+    for (let i = samples - 1; i >= 0; i--) {
+      v[i] = Math.min(v[i], Math.sqrt(v[i + 1] * v[i + 1] + 2 * decel * this.step));
+    }
+
+    const t = new Float64Array(samples + 1);
+    let peak = 0;
+    for (let i = 0; i < samples; i++) {
+      const mean = 0.5 * (v[i] + v[i + 1]);
+      t[i + 1] = t[i] + (mean < 1e-9 ? 0 : this.step / mean);
+      peak = Math.max(peak, v[i]);
+    }
+
+    this.v = v;
+    this.t = t;
+    this.peak = peak;
+    this.duration = t[samples];
+  }
+
+  /** Distance covered by time t. */
+  position(time) {
+    if (this.distance < 1e-9) return 0;
+    if (time <= 0) return 0;
+    if (time >= this.duration) return this.distance;
+
+    let lo = 0, hi = this.t.length - 1;
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (this.t[mid] <= time) lo = mid; else hi = mid;
+    }
+    const span = this.t[lo + 1] - this.t[lo];
+    const frac = span < 1e-12 ? 0 : (time - this.t[lo]) / span;
+    const speed = this.v[lo] + (this.v[lo + 1] - this.v[lo]) * frac;
+    return Math.min(lo * this.step + 0.5 * (this.v[lo] + speed) * (time - this.t[lo]),
+                    this.distance);
+  }
+
+  /** Planned speed at a given arc length, for drawing the speed ribbon. */
+  velocityAt(arcLength) {
+    if (this.distance < 1e-9) return 0;
+    const scaled = Math.max(0, Math.min(this.distance, arcLength)) / this.step;
+    const i = Math.floor(scaled);
+    if (i >= this.v.length - 1) return this.v[this.v.length - 1];
+    return this.v[i] + (this.v[i + 1] - this.v[i]) * (scaled - i);
+  }
+}
+
+/* ==========================================================================
+   Model
+   ========================================================================== */
+
+const FIELD = 144;          // FTC field is 12 ft square
+const DEFAULT_DT = 0.02;    // collision scan step, seconds
+
+/**
+ * A segment's control points are stored in the robot's START-RELATIVE frame:
+ * +x out the robot's front at the moment it starts, +y out its left. That is
+ * the frame PathChain and Pose2d use, so what you author here is literally what
+ * you paste into Java. Placing the robot on the field is a separate transform,
+ * applied only for drawing and for collision testing.
+ */
+function makeRobot(name, color, start, chainSeed) {
+  return {
+    name, color,
+    start,                       // {x, y, heading} in FIELD coordinates
+    length: 17, width: 17,       // footprint, inches
+    maxVel: 40, maxAccel: 50, maxDecel: 60,
+    delay: 0,
+    segments: chainSeed,
+    _cache: null
+  };
+}
+
+function seg(points, headingMode, headingA, headingB, maxVel) {
+  return {
+    points,
+    headingMode,
+    headingA: headingA || 0,
+    headingB: headingB || 0,
+    // null means "no override" -- use the robot's global limit.
+    maxVel: (maxVel === undefined || maxVel === null) ? null : maxVel
+  };
+}
+
+function defaultState() {
+  return {
+    robots: [
+      makeRobot("Robot 1", "#f2734d", { x: -60, y: -36, heading: 0 }, [
+        seg([{ x: 0, y: 0 }, { x: 36, y: 0 }], "tangent"),
+        seg([{ x: 36, y: 0 }, { x: 54, y: 0 }, { x: 60, y: 24 }], "linear", 0, Math.PI / 2)
+      ]),
+      makeRobot("Robot 2", "#4dc3f2", { x: 60, y: 36, heading: Math.PI }, [
+        seg([{ x: 0, y: 0 }, { x: 40, y: 0 }], "tangent"),
+        seg([{ x: 40, y: 0 }, { x: 58, y: 0 }, { x: 64, y: -20 }], "tangent")
+      ])
+    ],
+    margin: 0,
+    selected: 0,
+    selectedSeg: 0,
+    time: 0,
+    playing: false,
+    view: { scale: 3.4, ox: 0, oy: 0, userAdjusted: false },
+    exportMode: "java"
+  };
+}
+
+let S = defaultState();
+
+/* --- undo ------------------------------------------------------------------
+   Snapshots are the same JSON the plan exports, so anything that survives a
+   save/load round trip survives an undo. View state (pan, zoom, playhead) is
+   deliberately excluded: scrubbing the timeline is not an edit, and having
+   ctrl-Z jump the camera around would be worse than no undo at all.
+   -------------------------------------------------------------------------- */
+
+const UNDO_LIMIT = 60;
+const undoStack = [];
+const redoStack = [];
+
+function snapshot() {
+  return JSON.stringify({
+    margin: S.margin,
+    robots: S.robots.map(r => ({
+      name: r.name,
+      start: { ...r.start },
+      length: r.length, width: r.width,
+      maxVel: r.maxVel, maxAccel: r.maxAccel, maxDecel: r.maxDecel,
+      delay: r.delay,
+      segments: r.segments.map(sg => ({
+        points: sg.points.map(pt => ({ ...pt })),
+        headingMode: sg.headingMode,
+        headingA: sg.headingA, headingB: sg.headingB,
+        maxVel: sg.maxVel
+      }))
+    }))
+  });
+}
+
+function restoreSnapshot(json) {
+  const data = JSON.parse(json);
+  S.margin = data.margin;
+  S.robots = data.robots.map((r, i) => {
+    const robot = makeRobot(r.name, i === 0 ? "#f2734d" : "#4dc3f2",
+      { ...r.start },
+      r.segments.map(sg => seg(sg.points.map(pt => ({ ...pt })),
+        sg.headingMode, sg.headingA, sg.headingB, sg.maxVel)));
+    robot.length = r.length; robot.width = r.width;
+    robot.maxVel = r.maxVel; robot.maxAccel = r.maxAccel; robot.maxDecel = r.maxDecel;
+    robot.delay = r.delay;
+    return robot;
+  });
+  S.selected = Math.min(S.selected, S.robots.length - 1);
+  S.selectedSeg = Math.min(S.selectedSeg, S.robots[S.selected].segments.length - 1);
+  document.getElementById("margin").value = String(S.margin);
+}
+
+function pushUndoSnapshot(state) {
+  if (undoStack.length && undoStack[undoStack.length - 1] === state) {
+    return; // nothing actually changed since the last snapshot
+  }
+  undoStack.push(state);
+  if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+  redoStack.length = 0;
+  updateHistoryButtons();
+}
+
+/** Records the current state as an undo point. Call BEFORE mutating. */
+function pushUndo() {
+  pushUndoSnapshot(snapshot());
+}
+
+/* Numeric fields update live on 'input', so by the time 'change' fires the edit
+   has already happened and snapshotting then would record the *result* -- an
+   undo point identical to the state you wanted to undo. So the snapshot is taken
+   on focus, before typing, and only committed on 'change' if the value actually
+   moved. Tabbing through a field without editing it adds nothing. */
+let editSnapshot = null;
+
+function beginEdit() {
+  editSnapshot = snapshot();
+}
+
+function commitEdit() {
+  if (editSnapshot !== null && editSnapshot !== snapshot()) {
+    pushUndoSnapshot(editSnapshot);
+  }
+  editSnapshot = null;
+}
+
+/** Wires the focus/change undo pair onto a numeric input. */
+function makeUndoable(el) {
+  if (!el) return;
+  el.addEventListener("focus", beginEdit);
+  el.addEventListener("change", commitEdit);
+}
+
+function undo() {
+  if (!undoStack.length) return;
+  redoStack.push(snapshot());
+  restoreSnapshot(undoStack.pop());
+  invalidate(); syncPanel(); render(); updateHistoryButtons();
+}
+
+function redo() {
+  if (!redoStack.length) return;
+  undoStack.push(snapshot());
+  restoreSnapshot(redoStack.pop());
+  invalidate(); syncPanel(); render(); updateHistoryButtons();
+}
+
+function updateHistoryButtons() {
+  const u = document.getElementById("undoBtn");
+  const r = document.getElementById("redoBtn");
+  if (u) u.disabled = undoStack.length === 0;
+  if (r) r.disabled = redoStack.length === 0;
+}
+
+/* --- derived geometry, rebuilt whenever a robot's path changes ------------ */
+
+function rebuild(robot) {
+  const paths = robot.segments.map(s => new BezierPath(s.points));
+  const total = paths.reduce((a, p) => a + p.length, 0);
+  const starts = [];
+  let running = 0;
+  for (const p of paths) { starts.push(running); running += p.length; }
+
+  // The velocity ceiling at a given arc length: the segment's own cap where it
+  // sets one, otherwise the robot's global limit. Never above the global limit.
+  const limitAt = s => {
+    let clamped = Math.max(0, Math.min(total, s));
+    for (let i = 0; i < paths.length; i++) {
+      if (clamped <= starts[i] + paths[i].length) {
+        const cap = robot.segments[i].maxVel;
+        return cap == null ? robot.maxVel : Math.min(cap, robot.maxVel);
+      }
+    }
+    const cap = robot.segments[robot.segments.length - 1].maxVel;
+    return cap == null ? robot.maxVel : Math.min(cap, robot.maxVel);
+  };
+
+  robot._cache = {
+    paths, starts, total, limitAt,
+    profile: new ConstrainedProfile(total, limitAt, robot.maxAccel, robot.maxDecel)
+  };
+  return robot._cache;
+}
+
+function cacheOf(robot) { return robot._cache || rebuild(robot); }
+
+function robotDuration(robot) { return robot.delay + cacheOf(robot).profile.duration; }
+
+function totalDuration() {
+  return Math.max(0.001, ...S.robots.map(robotDuration));
+}
+
+/** Start-relative pose at arc length s. */
+function localPoseAtArcLength(robot, s) {
+  const c = cacheOf(robot);
+  if (c.total < 1e-9) return { x: 0, y: 0, heading: 0 };
+
+  const clamped = Math.max(0, Math.min(c.total, s));
+  let index = c.paths.length - 1;
+  for (let i = 0; i < c.paths.length; i++) {
+    if (clamped <= c.starts[i] + c.paths[i].length) { index = i; break; }
+  }
+
+  const path = c.paths[index];
+  const t = path.tAtArcLength(clamped - c.starts[index]);
+  const p = path.point(t);
+  return { x: p.x, y: p.y, heading: segmentHeading(robot.segments[index], path, t) };
+}
+
+/** Lifts a start-relative pose into field coordinates. */
+function toField(robot, local) {
+  const r = rotate(local.x, local.y, robot.start.heading);
+  return {
+    x: robot.start.x + r.x,
+    y: robot.start.y + r.y,
+    heading: normalizeAngle(robot.start.heading + local.heading)
+  };
+}
+
+/** Field pose at time t, accounting for the robot's start delay. */
+function poseAtTime(robot, t) {
+  const c = cacheOf(robot);
+  const s = c.profile.position(t - robot.delay);
+  return toField(robot, localPoseAtArcLength(robot, s));
+}
+
+/* ==========================================================================
+   Collision: separating axis theorem on two rotated rectangles.
+
+   The bounding-circle test this replaces is cheap but wrong in the direction
+   that matters: it inscribes the robot's diagonal, so two robots passing corner
+   to corner read as a collision when they are comfortably clear. SAT is exact
+   for convex shapes, and a robot footprint is a rectangle.
+   ========================================================================== */
+
+/** The four field-frame corners of a robot's footprint at a given pose. */
+function corners(pose, length, width, inflate) {
+  const hl = length / 2 + inflate;
+  const hw = width / 2 + inflate;
+  const local = [
+    { x: hl, y: hw }, { x: hl, y: -hw }, { x: -hl, y: -hw }, { x: -hl, y: hw }
+  ];
+  return local.map(p => {
+    const r = rotate(p.x, p.y, pose.heading);
+    return { x: pose.x + r.x, y: pose.y + r.y };
+  });
+}
+
+function projectOnto(pts, axis) {
+  let min = Infinity, max = -Infinity;
+  for (const p of pts) {
+    const d = p.x * axis.x + p.y * axis.y;
+    if (d < min) min = d;
+    if (d > max) max = d;
+  }
+  return { min, max };
+}
+
+/**
+ * Returns the overlap depth of two convex polygons: positive when they
+ * intersect, and the (negative) separation distance when they do not.
+ *
+ * A rectangle has only two distinct edge normals, so four axes decide it.
+ */
+function overlapDepth(a, b) {
+  let smallest = Infinity;
+
+  for (const poly of [a, b]) {
+    for (let i = 0; i < 4; i++) {
+      const p1 = poly[i], p2 = poly[(i + 1) % 4];
+      const edge = { x: p2.x - p1.x, y: p2.y - p1.y };
+      const len = Math.hypot(edge.x, edge.y);
+      if (len < 1e-12) continue;
+      const axis = { x: -edge.y / len, y: edge.x / len };
+
+      const pa = projectOnto(a, axis);
+      const pb = projectOnto(b, axis);
+      // Overlap on this axis; negative means a gap, which by SAT proves the
+      // polygons are disjoint -- so we can stop immediately.
+      const depth = Math.min(pa.max, pb.max) - Math.max(pa.min, pb.min);
+      if (depth < 0) return depth;
+      if (depth < smallest) smallest = depth;
+    }
+  }
+  return smallest;
+}
+
+/** Sweeps the whole timeline and reports the worst moment. */
+function scanCollisions() {
+  const [a, b] = S.robots;
+  const duration = totalDuration();
+  const inflate = S.margin / 2; // half each, so the pair is separated by `margin`
+
+  let firstHit = null;
+  let minClearance = Infinity;
+  let minClearanceTime = 0;
+  const hits = [];
+
+  for (let t = 0; t <= duration + 1e-9; t += DEFAULT_DT) {
+    const pa = poseAtTime(a, t);
+    const pb = poseAtTime(b, t);
+    const depth = overlapDepth(
+      corners(pa, a.length, a.width, inflate),
+      corners(pb, b.length, b.width, inflate));
+
+    if (depth > 0) {
+      if (firstHit === null) firstHit = t;
+      hits.push(t);
+    } else if (-depth < minClearance) {
+      minClearance = -depth;
+      minClearanceTime = t;
+    }
+  }
+
+  return {
+    duration,
+    firstHit,
+    hits,
+    minClearance: hits.length ? 0 : (minClearance === Infinity ? 0 : minClearance),
+    minClearanceTime
+  };
+}
+
+let scan = scanCollisions();
+
+/* ==========================================================================
+   Rendering
+   ========================================================================== */
+
+const canvas = document.getElementById("field");
+const ctx = canvas.getContext("2d");
+const tlCanvas = document.getElementById("tlCanvas");
+const tlCtx = tlCanvas.getContext("2d");
+
+function fitCanvas(cv, c) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = cv.getBoundingClientRect();
+  cv.width = Math.round(rect.width * dpr);
+  cv.height = Math.round(rect.height * dpr);
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return rect;
+}
+
+/** Field inches -> screen pixels. Field +y is up, so screen y is negated. */
+function worldToScreen(x, y, rect) {
+  const v = S.view;
+  return {
+    x: rect.width / 2 + v.ox + x * v.scale,
+    y: rect.height / 2 + v.oy - y * v.scale
+  };
+}
+
+function screenToWorld(px, py, rect) {
+  const v = S.view;
+  return {
+    x: (px - rect.width / 2 - v.ox) / v.scale,
+    y: -(py - rect.height / 2 - v.oy) / v.scale
+  };
+}
+
+function drawField(rect) {
+  const half = FIELD / 2;
+  const tl = worldToScreen(-half, half, rect);
+  const br = worldToScreen(half, -half, rect);
+
+  ctx.fillStyle = "#171a1f";
+  ctx.fillRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
+
+  // 24" tiles, the way the real field is built.
+  ctx.strokeStyle = "#252a32";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let i = -half; i <= half; i += 24) {
+    const a = worldToScreen(i, half, rect), b = worldToScreen(i, -half, rect);
+    ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+    const c = worldToScreen(-half, i, rect), d = worldToScreen(half, i, rect);
+    ctx.moveTo(c.x, c.y); ctx.lineTo(d.x, d.y);
+  }
+  ctx.stroke();
+
+  // Axes through the field centre.
+  ctx.strokeStyle = "#39414d";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  const ox1 = worldToScreen(-half, 0, rect), ox2 = worldToScreen(half, 0, rect);
+  ctx.moveTo(ox1.x, ox1.y); ctx.lineTo(ox2.x, ox2.y);
+  const oy1 = worldToScreen(0, -half, rect), oy2 = worldToScreen(0, half, rect);
+  ctx.moveTo(oy1.x, oy1.y); ctx.lineTo(oy2.x, oy2.y);
+  ctx.stroke();
+
+  ctx.strokeStyle = "#4a5462";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
+}
+
+function drawPath(robot, rect, isSelected) {
+  const c = cacheOf(robot);
+  if (c.total < 1e-9) return;
+
+  // The path itself, sampled evenly in arc length.
+  ctx.strokeStyle = robot.color;
+  ctx.lineWidth = isSelected ? 2.5 : 1.6;
+  ctx.globalAlpha = isSelected ? 1 : 0.6;
+  ctx.beginPath();
+  const steps = 220;
+  for (let i = 0; i <= steps; i++) {
+    const p = toField(robot, localPoseAtArcLength(robot, c.total * i / steps));
+    const s = worldToScreen(p.x, p.y, rect);
+    if (i === 0) ctx.moveTo(s.x, s.y); else ctx.lineTo(s.x, s.y);
+  }
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  if (!isSelected) return;
+
+  // Control polygon and handles.
+  robot.segments.forEach((sg, si) => {
+    const pts = sg.points.map(p => {
+      const f = toField(robot, { x: p.x, y: p.y, heading: 0 });
+      return worldToScreen(f.x, f.y, rect);
+    });
+
+    if (pts.length > 2) {
+      ctx.strokeStyle = "rgba(255,255,255,.18)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    pts.forEach((p, pi) => {
+      const isEnd = pi === 0 || pi === pts.length - 1;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, isEnd ? 5.5 : 4.5, 0, TWO_PI);
+      ctx.fillStyle = si === S.selectedSeg ? robot.color : "#8b95a5";
+      ctx.fill();
+      ctx.strokeStyle = "#0f1114";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    });
+  });
+}
+
+function drawRobot(rect, robot, pose, colliding) {
+  const pts = corners(pose, robot.length, robot.width, 0)
+    .map(p => worldToScreen(p.x, p.y, rect));
+
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < 4; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.closePath();
+
+  ctx.fillStyle = colliding ? "rgba(255,93,93,.30)" : robot.color + "33";
+  ctx.fill();
+  ctx.strokeStyle = colliding ? "#ff5d5d" : robot.color;
+  ctx.lineWidth = colliding ? 2.5 : 1.8;
+  ctx.stroke();
+
+  // A nose line, so the heading is readable at a glance.
+  const nose = rotate(robot.length / 2, 0, pose.heading);
+  const c0 = worldToScreen(pose.x, pose.y, rect);
+  const c1 = worldToScreen(pose.x + nose.x, pose.y + nose.y, rect);
+  ctx.beginPath();
+  ctx.moveTo(c0.x, c0.y);
+  ctx.lineTo(c1.x, c1.y);
+  ctx.strokeStyle = colliding ? "#ff5d5d" : robot.color;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function drawStartHandle(rect, robot, isSelected) {
+  const s = worldToScreen(robot.start.x, robot.start.y, rect);
+  const radius = Math.max(robot.length, robot.width) / 2 * S.view.scale + 10;
+
+  ctx.beginPath();
+  ctx.arc(s.x, s.y, radius, 0, TWO_PI);
+  ctx.strokeStyle = isSelected ? robot.color + "88" : "transparent";
+  ctx.setLineDash([4, 4]);
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  if (!isSelected) return;
+
+  // The rotation grip sits on the ring, out along the start heading.
+  const grip = {
+    x: s.x + Math.cos(-robot.start.heading) * radius,
+    y: s.y + Math.sin(-robot.start.heading) * radius
+  };
+  ctx.beginPath();
+  ctx.arc(grip.x, grip.y, 6, 0, TWO_PI);
+  ctx.fillStyle = robot.color;
+  ctx.fill();
+  ctx.strokeStyle = "#0f1114";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+/**
+ * Sizes the view so the whole field fits, with a little breathing room. Runs on
+ * load and on resize, but stops as soon as the user pans or zooms -- silently
+ * yanking the view back to a default while someone is working is worse than
+ * showing them a slightly awkward starting frame.
+ */
+function fitView(rect) {
+  if (S.view.userAdjusted) return;
+  const pad = 24;
+  S.view.scale = Math.max(0.8, Math.min(14,
+    Math.min(rect.width - pad, rect.height - pad) / FIELD));
+  S.view.ox = 0;
+  S.view.oy = 0;
+}
+
+function render() {
+  const rect = fitCanvas(canvas, ctx);
+  fitView(rect);
+  ctx.clearRect(0, 0, rect.width, rect.height);
+  drawField(rect);
+
+  S.robots.forEach((r, i) => drawPath(r, rect, i === S.selected));
+
+  const poses = S.robots.map(r => poseAtTime(r, S.time));
+  const inflate = S.margin / 2;
+  const colliding = overlapDepth(
+    corners(poses[0], S.robots[0].length, S.robots[0].width, inflate),
+    corners(poses[1], S.robots[1].length, S.robots[1].width, inflate)) > 0;
+
+  S.robots.forEach((r, i) => drawStartHandle(rect, r, i === S.selected));
+  S.robots.forEach((r, i) => drawRobot(rect, r, poses[i], colliding));
+
+  renderTimeline();
+}
+
+function renderTimeline() {
+  const rect = fitCanvas(tlCanvas, tlCtx);
+  const duration = scan.duration;
+  tlCtx.clearRect(0, 0, rect.width, rect.height);
+
+  tlCtx.fillStyle = "#14171d";
+  tlCtx.fillRect(0, 0, rect.width, rect.height);
+
+  const xOf = t => (t / duration) * rect.width;
+
+  // Per-robot active spans, so a delayed start is visible.
+  S.robots.forEach((r, i) => {
+    const y = 4 + i * 13;
+    tlCtx.fillStyle = r.color + "55";
+    tlCtx.fillRect(xOf(r.delay), y, xOf(cacheOf(r).profile.duration), 9);
+    tlCtx.fillStyle = r.color;
+    tlCtx.fillRect(xOf(r.delay), y, 2, 9);
+  });
+
+  // Collision windows on top.
+  tlCtx.fillStyle = "rgba(255,93,93,.55)";
+  for (const t of scan.hits) {
+    tlCtx.fillRect(xOf(t), 0, Math.max(1, xOf(DEFAULT_DT)), rect.height);
+  }
+
+  // Playhead.
+  const x = xOf(S.time);
+  tlCtx.strokeStyle = "#e6e9ef";
+  tlCtx.lineWidth = 1.5;
+  tlCtx.beginPath();
+  tlCtx.moveTo(x, 0);
+  tlCtx.lineTo(x, rect.height);
+  tlCtx.stroke();
+}
+
+/* ==========================================================================
+   Interaction
+   ========================================================================== */
+
+let drag = null;
+
+function hitTest(px, py, rect) {
+  const robot = S.robots[S.selected];
+
+  // Rotation grip first -- it sits on top of everything else.
+  const s = worldToScreen(robot.start.x, robot.start.y, rect);
+  const radius = Math.max(robot.length, robot.width) / 2 * S.view.scale + 10;
+  const grip = {
+    x: s.x + Math.cos(-robot.start.heading) * radius,
+    y: s.y + Math.sin(-robot.start.heading) * radius
+  };
+  if (Math.hypot(px - grip.x, py - grip.y) < 10) return { kind: "rotate" };
+
+  // Control points, later segments first so overlapping joints pick the newer.
+  for (let si = robot.segments.length - 1; si >= 0; si--) {
+    const sg = robot.segments[si];
+    for (let pi = sg.points.length - 1; pi >= 0; pi--) {
+      const f = toField(robot, { x: sg.points[pi].x, y: sg.points[pi].y, heading: 0 });
+      const sp = worldToScreen(f.x, f.y, rect);
+      if (Math.hypot(px - sp.x, py - sp.y) < 9) {
+        return { kind: "point", segment: si, index: pi };
+      }
+    }
+  }
+
+  // The robot body itself moves the start pose.
+  if (Math.hypot(px - s.x, py - s.y) < radius) return { kind: "start" };
+
+  return { kind: "pan" };
+}
+
+canvas.addEventListener("pointerdown", e => {
+  const rect = canvas.getBoundingClientRect();
+  const px = e.clientX - rect.left, py = e.clientY - rect.top;
+
+  // Clicking near the other robot selects it instead of panning.
+  const other = 1 - S.selected;
+  const os = worldToScreen(S.robots[other].start.x, S.robots[other].start.y, rect);
+  const oradius = Math.max(S.robots[other].length, S.robots[other].width) / 2 * S.view.scale + 10;
+  const hit = hitTest(px, py, rect);
+  if (hit.kind === "pan" && Math.hypot(px - os.x, py - os.y) < oradius) {
+    selectRobot(other);
+    return;
+  }
+
+  // One undo entry per drag gesture, not per pointermove.
+  if (hit.kind === "start" || hit.kind === "rotate" || hit.kind === "point") {
+    pushUndo();
+  }
+  drag = { ...hit, startX: px, startY: py, ox: S.view.ox, oy: S.view.oy };
+  if (hit.kind === "point") {
+    S.selectedSeg = hit.segment;
+    syncPanel();
+  }
+  canvas.setPointerCapture(e.pointerId);
+});
+
+canvas.addEventListener("pointermove", e => {
+  if (!drag) return;
+  const rect = canvas.getBoundingClientRect();
+  const px = e.clientX - rect.left, py = e.clientY - rect.top;
+  const robot = S.robots[S.selected];
+
+  if (drag.kind === "pan") {
+    S.view.userAdjusted = true;
+    S.view.ox = drag.ox + (px - drag.startX);
+    S.view.oy = drag.oy + (py - drag.startY);
+
+  } else if (drag.kind === "start") {
+    const w = screenToWorld(px, py, rect);
+    robot.start.x = Math.round(w.x * 10) / 10;
+    robot.start.y = Math.round(w.y * 10) / 10;
+    invalidate();
+
+  } else if (drag.kind === "rotate") {
+    const s = worldToScreen(robot.start.x, robot.start.y, rect);
+    robot.start.heading = normalizeAngle(-Math.atan2(py - s.y, px - s.x));
+    invalidate();
+
+  } else if (drag.kind === "point") {
+    const w = screenToWorld(px, py, rect);
+    // Back out of the field frame into the robot's start-relative frame.
+    const rel = rotate(w.x - robot.start.x, w.y - robot.start.y, -robot.start.heading);
+    movePoint(robot, drag.segment, drag.index,
+      Math.round(rel.x * 10) / 10, Math.round(rel.y * 10) / 10);
+    invalidate();
+  }
+  render();
+});
+
+canvas.addEventListener("pointerup", e => {
+  drag = null;
+  canvas.releasePointerCapture(e.pointerId);
+  syncPanel();
+});
+
+/**
+ * Moves a control point, dragging the neighbouring segment's shared endpoint
+ * with it. Letting a chain come apart at a joint would silently produce a path
+ * the library cannot follow continuously.
+ */
+function movePoint(robot, segIndex, ptIndex, x, y) {
+  const sg = robot.segments[segIndex];
+  sg.points[ptIndex] = { x, y };
+
+  if (ptIndex === 0 && segIndex > 0) {
+    const prev = robot.segments[segIndex - 1];
+    prev.points[prev.points.length - 1] = { x, y };
+  }
+  if (ptIndex === sg.points.length - 1 && segIndex < robot.segments.length - 1) {
+    robot.segments[segIndex + 1].points[0] = { x, y };
+  }
+}
+
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+  S.view.userAdjusted = true;
+  S.view.scale = Math.max(0.8, Math.min(14, S.view.scale * factor));
+  render();
+}, { passive: false });
+
+/* --- timeline scrubbing --------------------------------------------------- */
+
+const scrub = document.getElementById("scrub");
+scrub.addEventListener("input", () => {
+  S.playing = false;
+  document.getElementById("playBtn").textContent = "Play";
+  S.time = (scrub.value / 1000) * scan.duration;
+  render();
+  updateTimeLabel();
+});
+
+tlCanvas.addEventListener("pointerdown", e => {
+  const rect = tlCanvas.getBoundingClientRect();
+  S.time = ((e.clientX - rect.left) / rect.width) * scan.duration;
+  S.playing = false;
+  document.getElementById("playBtn").textContent = "Play";
+  syncScrub();
+  render();
+});
+
+document.getElementById("playBtn").addEventListener("click", togglePlay);
+document.getElementById("rewindBtn").addEventListener("click", () => {
+  S.time = 0; syncScrub(); render();
+});
+
+function togglePlay() {
+  S.playing = !S.playing;
+  if (S.playing && S.time >= scan.duration - 1e-6) S.time = 0;
+  document.getElementById("playBtn").textContent = S.playing ? "Pause" : "Play";
+}
+
+window.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  if (e.code === "Space") { e.preventDefault(); togglePlay(); }
+  if (e.code === "ArrowRight") { S.time = Math.min(scan.duration, S.time + DEFAULT_DT); syncScrub(); render(); }
+  if (e.code === "ArrowLeft") { S.time = Math.max(0, S.time - DEFAULT_DT); syncScrub(); render(); }
+
+  const mod = e.metaKey || e.ctrlKey;
+  if (mod && e.key.toLowerCase() === "z") {
+    e.preventDefault();
+    if (e.shiftKey) redo(); else undo();
+  }
+  if (mod && e.key.toLowerCase() === "s") {
+    e.preventDefault();
+    document.getElementById("saveBtn").click();
+  }
+});
+
+let lastFrame = performance.now();
+function tick(now) {
+  const dt = Math.min(0.05, (now - lastFrame) / 1000);
+  lastFrame = now;
+  if (S.playing) {
+    S.time += dt;
+    if (S.time >= scan.duration) { S.time = scan.duration; S.playing = false;
+      document.getElementById("playBtn").textContent = "Play"; }
+    syncScrub();
+    render();
+  }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+function syncScrub() {
+  scrub.value = String(Math.round((S.time / scan.duration) * 1000));
+  updateTimeLabel();
+}
+
+function updateTimeLabel() {
+  document.getElementById("timeLabel").textContent =
+    `${S.time.toFixed(2)} s / ${scan.duration.toFixed(2)} s`;
+}
+
+/* ==========================================================================
+   Panel
+   ========================================================================== */
+
+function invalidate() {
+  S.robots.forEach(rebuild);
+  scan = scanCollisions();
+  if (S.time > scan.duration) S.time = scan.duration;
+  updateVerdict();
+  updateExport();
+  syncScrub();
+}
+
+function updateVerdict() {
+  const el = document.getElementById("verdict");
+  if (scan.firstHit !== null) {
+    const last = scan.hits[scan.hits.length - 1];
+    el.className = "verdict hit";
+    el.innerHTML = `Collision from <b>${scan.firstHit.toFixed(2)} s</b> to ` +
+      `<b>${last.toFixed(2)} s</b> &mdash; ${scan.hits.length} sampled frames overlap.`;
+  } else {
+    el.className = "verdict clear";
+    el.innerHTML = `Clear. Closest approach <b>${scan.minClearance.toFixed(2)}"</b> ` +
+      `at <b>${scan.minClearanceTime.toFixed(2)} s</b>.`;
+  }
+}
+
+function selectRobot(i) {
+  S.selected = i;
+  S.selectedSeg = Math.min(S.selectedSeg, S.robots[i].segments.length - 1);
+  document.getElementById("tabR1").classList.toggle("on", i === 0);
+  document.getElementById("tabR2").classList.toggle("on", i === 1);
+  syncPanel();
+  render();
+}
+
+document.getElementById("tabR1").addEventListener("click", () => selectRobot(0));
+document.getElementById("tabR2").addEventListener("click", () => selectRobot(1));
+
+const fields = {
+  sx: r => r.start.x, sy: r => r.start.y,
+  sh: r => Math.round(r.start.heading * 180 / Math.PI * 10) / 10,
+  rlen: r => r.length, rwid: r => r.width,
+  mv: r => r.maxVel, ma: r => r.maxAccel, md: r => r.maxDecel,
+  delay: r => r.delay
+};
+
+const setters = {
+  sx: (r, v) => r.start.x = v,
+  sy: (r, v) => r.start.y = v,
+  sh: (r, v) => r.start.heading = normalizeAngle(v * Math.PI / 180),
+  rlen: (r, v) => r.length = Math.max(1, v),
+  rwid: (r, v) => r.width = Math.max(1, v),
+  mv: (r, v) => r.maxVel = Math.max(1, v),
+  ma: (r, v) => r.maxAccel = Math.max(1, v),
+  md: (r, v) => r.maxDecel = Math.max(1, v),
+  delay: (r, v) => r.delay = Math.max(0, v)
+};
+
+for (const id of Object.keys(fields)) {
+  makeUndoable(document.getElementById(id));
+  document.getElementById(id).addEventListener("input", e => {
+    const v = parseFloat(e.target.value);
+    if (!Number.isFinite(v)) return;
+    setters[id](S.robots[S.selected], v);
+    invalidate();
+    render();
+  });
+}
+
+makeUndoable(document.getElementById("margin"));
+document.getElementById("margin").addEventListener("input", e => {
+  const v = parseFloat(e.target.value);
+  S.margin = Number.isFinite(v) ? Math.max(0, v) : 0;
+  invalidate();
+  render();
+});
+
+function syncPanel() {
+  const r = S.robots[S.selected];
+  for (const id of Object.keys(fields)) {
+    const el = document.getElementById(id);
+    if (document.activeElement !== el) el.value = String(fields[id](r));
+  }
+  document.getElementById("robotTitle").textContent = r.name;
+  document.getElementById("robotDot").style.background = r.color;
+  renderSegments();
+  updateExport();
+}
+
+function renderSegments() {
+  const r = S.robots[S.selected];
+  const host = document.getElementById("segList");
+  host.innerHTML = "";
+
+  r.segments.forEach((sg, i) => {
+    const div = document.createElement("div");
+    div.className = "seg" + (i === S.selectedSeg ? " sel" : "");
+
+    const kind = sg.points.length === 2 ? "Line" : `Bezier &deg;${sg.points.length - 1}`;
+    const path = cacheOf(r).paths[i];
+
+    div.innerHTML = `
+      <div class="seg-head">
+        <span class="idx">${i}</span>
+        <span>${kind}</span>
+        <span class="idx">${path.length.toFixed(1)}"</span>
+        ${sg.maxVel != null ? `<span class="cap-tag">&le;${sg.maxVel}</span>` : ""}
+        <span class="spacer"></span>
+        <button data-act="ctrl" data-i="${i}" title="Add a control point">+pt</button>
+        <button data-act="del" data-i="${i}" class="danger" title="Delete segment">&times;</button>
+      </div>
+      <div class="row tight">
+        <label>Heading</label>
+        <select data-act="mode" data-i="${i}">
+          <option value="tangent">Tangent</option>
+          <option value="reverseTangent">Reverse tangent</option>
+          <option value="constant">Constant</option>
+          <option value="linear">Linear</option>
+        </select>
+      </div>
+      <div class="row tight" data-role="ha" style="display:none">
+        <label>From&deg;</label>
+        <input type="number" step="5" data-act="ha" data-i="${i}">
+      </div>
+      <div class="row tight" data-role="hb" style="display:none">
+        <label>To&deg;</label>
+        <input type="number" step="5" data-act="hb" data-i="${i}">
+      </div>
+      <div class="row tight">
+        <label title="Blank uses the robot's global max velocity">Max vel</label>
+        <input type="number" step="1" min="0" placeholder="global"
+               data-act="cap" data-i="${i}">
+      </div>`;
+
+    div.querySelector("select").value = sg.headingMode;
+    div.querySelector('[data-act="cap"]').value = sg.maxVel == null ? "" : String(sg.maxVel);
+
+    const rowA = div.querySelector('[data-role="ha"]');
+    const rowB = div.querySelector('[data-role="hb"]');
+    if (sg.headingMode === "constant" || sg.headingMode === "linear") {
+      rowA.style.display = "flex";
+      rowA.querySelector("input").value =
+        String(Math.round(sg.headingA * 180 / Math.PI * 10) / 10);
+      rowA.querySelector("label").textContent =
+        sg.headingMode === "constant" ? "Angle°" : "From°";
+    }
+    if (sg.headingMode === "linear") {
+      rowB.style.display = "flex";
+      rowB.querySelector("input").value =
+        String(Math.round(sg.headingB * 180 / Math.PI * 10) / 10);
+    }
+
+    div.addEventListener("click", e => {
+      if (e.target.tagName !== "BUTTON") { S.selectedSeg = i; syncPanel(); render(); }
+    });
+    host.appendChild(div);
+  });
+
+  host.querySelectorAll("[data-act]").forEach(el => {
+    const act = el.dataset.act;
+    const i = parseInt(el.dataset.i, 10);
+    const ev = el.tagName === "BUTTON" ? "click" : "input";
+    if (el.tagName === "INPUT") {
+      makeUndoable(el);
+    }
+    el.addEventListener(ev, e => {
+      e.stopPropagation();
+      const rb = S.robots[S.selected];
+      const sg = rb.segments[i];
+
+      if (act === "del" || act === "ctrl" || act === "mode") pushUndo();
+
+      if (act === "del") {
+        if (rb.segments.length <= 1) return;
+        rb.segments.splice(i, 1);
+        // Re-join the seam the deletion opened up.
+        for (let k = 1; k < rb.segments.length; k++) {
+          const prev = rb.segments[k - 1];
+          rb.segments[k].points[0] = { ...prev.points[prev.points.length - 1] };
+        }
+        S.selectedSeg = Math.min(S.selectedSeg, rb.segments.length - 1);
+      } else if (act === "ctrl") {
+        // Insert a control point midway along the current control polygon.
+        const pts = sg.points;
+        const a = pts[pts.length - 2], b = pts[pts.length - 1];
+        pts.splice(pts.length - 1, 0, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+      } else if (act === "mode") {
+        sg.headingMode = el.value;
+        // Seed the angles from the current tangent, so switching modes does not
+        // snap the robot to an unrelated heading.
+        const path = cacheOf(rb).paths[i];
+        if (sg.headingA === 0 && sg.headingB === 0) {
+          sg.headingA = path.tangentAngle(0);
+          sg.headingB = path.tangentAngle(1);
+        }
+      } else if (act === "ha") {
+        sg.headingA = parseFloat(el.value) * Math.PI / 180 || 0;
+      } else if (act === "hb") {
+        sg.headingB = parseFloat(el.value) * Math.PI / 180 || 0;
+      } else if (act === "cap") {
+        // Blank means "no override": fall back to the robot's global limit.
+        const raw = el.value.trim();
+        const parsed = parseFloat(raw);
+        sg.maxVel = (raw === "" || !Number.isFinite(parsed) || parsed <= 0)
+          ? null : parsed;
+      }
+
+      invalidate();
+      if (act !== "ha" && act !== "hb" && act !== "cap") syncPanel();
+      render();
+    });
+  });
+}
+
+function lastPoint(robot) {
+  const sg = robot.segments[robot.segments.length - 1];
+  return sg.points[sg.points.length - 1];
+}
+
+document.getElementById("addLine").addEventListener("click", () => {
+  pushUndo();
+  const r = S.robots[S.selected];
+  const p = lastPoint(r);
+  r.segments.push(seg([{ ...p }, { x: p.x + 18, y: p.y }], "tangent"));
+  S.selectedSeg = r.segments.length - 1;
+  invalidate(); syncPanel(); render();
+});
+
+document.getElementById("addCurve").addEventListener("click", () => {
+  pushUndo();
+  const r = S.robots[S.selected];
+  const p = lastPoint(r);
+  r.segments.push(seg(
+    [{ ...p }, { x: p.x + 14, y: p.y }, { x: p.x + 20, y: p.y + 16 }], "tangent"));
+  S.selectedSeg = r.segments.length - 1;
+  invalidate(); syncPanel(); render();
+});
+
+/* ==========================================================================
+   Export
+
+   Java comes out in the robot's start-relative frame, because that is the frame
+   PathChain lives in. The start pose is emitted as a comment rather than as
+   code: the library has no concept of where the field is, and pretending
+   otherwise in generated code would be a lie you would then have to debug.
+   ========================================================================== */
+
+const num = v => (Math.round(v * 1000) / 1000).toFixed(3);
+const deg = rad => (Math.round(rad * 180 / Math.PI * 100) / 100).toFixed(2);
+
+function toJava(robot, varName) {
+  const lines = [];
+  lines.push(`// ${robot.name} -- start-relative path, inches.`);
+  lines.push(`// Place the robot at field (${num(robot.start.x)}, ${num(robot.start.y)}) `
+    + `facing ${deg(robot.start.heading)} deg before running this.`);
+  lines.push(`// Profile: ${robot.maxVel} in/s, ${robot.maxAccel} in/s^2 accel, `
+    + `${robot.maxDecel} in/s^2 decel`
+    + (robot.delay > 0 ? `, after a ${robot.delay}s delay` : "") + ".");
+  lines.push(`PathChain ${varName} = new PathBuilder()`);
+
+  robot.segments.forEach(sg => {
+    const pts = sg.points
+      .map(p => `new Point(${num(p.x)}, ${num(p.y)})`)
+      .join(", ");
+    const type = sg.points.length === 2 ? "BezierLine" : "BezierCurve";
+    lines.push(`        .addPath(new ${type}(${pts}))`);
+
+    switch (sg.headingMode) {
+      case "constant":
+        lines.push(`        .setConstantHeadingInterpolation(Math.toRadians(${deg(sg.headingA)}))`);
+        break;
+      case "linear":
+        lines.push(`        .setLinearHeadingInterpolation(`
+          + `Math.toRadians(${deg(sg.headingA)}), Math.toRadians(${deg(sg.headingB)}))`);
+        break;
+      case "reverseTangent":
+        lines.push(`        .setReverseTangentHeadingInterpolation()`);
+        break;
+      default:
+        lines.push(`        .setTangentHeadingInterpolation()`);
+    }
+
+    if (sg.maxVel != null) {
+      lines.push(`        .setMaxVelocity(${num(sg.maxVel)})`);
+    }
+  });
+
+  lines.push("        .build();");
+  return lines.join("\n");
+}
+
+function toJson() {
+  return JSON.stringify({
+    format: "verniteyaku-alliance-plan",
+    version: 1,
+    units: "inches",
+    frame: "path points are start-relative; start poses are field coordinates",
+    margin: S.margin,
+    robots: S.robots.map(r => ({
+      name: r.name,
+      start: { x: r.start.x, y: r.start.y, headingRad: r.start.heading },
+      footprint: { length: r.length, width: r.width },
+      motion: { maxVel: r.maxVel, maxAccel: r.maxAccel, maxDecel: r.maxDecel,
+                delay: r.delay },
+      segments: r.segments.map(s => ({
+        points: s.points,
+        headingMode: s.headingMode,
+        headingA: s.headingA,
+        headingB: s.headingB,
+        maxVel: s.maxVel
+      }))
+    })),
+    analysis: {
+      duration: scan.duration,
+      collides: scan.firstHit !== null,
+      firstCollisionTime: scan.firstHit,
+      minClearance: scan.minClearance
+    }
+  }, null, 2);
+}
+
+function updateExport() {
+  document.getElementById("exportBox").value = S.exportMode === "java"
+    ? S.robots.map((r, i) => toJava(r, "robot" + (i + 1))).join("\n\n")
+    : toJson();
+}
+
+document.getElementById("tabJava").addEventListener("click", () => {
+  S.exportMode = "java";
+  document.getElementById("tabJava").classList.add("on");
+  document.getElementById("tabJson").classList.remove("on");
+  updateExport();
+});
+document.getElementById("tabJson").addEventListener("click", () => {
+  S.exportMode = "json";
+  document.getElementById("tabJson").classList.add("on");
+  document.getElementById("tabJava").classList.remove("on");
+  updateExport();
+});
+
+document.getElementById("copyBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("copyBtn");
+  try {
+    await navigator.clipboard.writeText(document.getElementById("exportBox").value);
+    btn.textContent = "Copied";
+  } catch {
+    // Clipboard access is blocked on file:// in some browsers; selecting the
+    // text is the honest fallback rather than pretending it worked.
+    document.getElementById("exportBox").select();
+    btn.textContent = "Press Cmd/Ctrl+C";
+  }
+  setTimeout(() => { btn.textContent = "Copy"; }, 1600);
+});
+
+function applyPlan(data) {
+  if (!Array.isArray(data.robots) || data.robots.length !== 2) {
+    throw new Error("expected exactly two robots");
+  }
+  S.robots = data.robots.map((r, i) => {
+    const robot = makeRobot(
+      r.name || `Robot ${i + 1}`,
+      i === 0 ? "#f2734d" : "#4dc3f2",
+      { x: r.start.x, y: r.start.y, heading: r.start.headingRad },
+      r.segments.map(s => seg(s.points, s.headingMode, s.headingA, s.headingB,
+                              s.maxVel)));
+    robot.length = r.footprint.length;
+    robot.width = r.footprint.width;
+    Object.assign(robot, r.motion || {});
+    return robot;
+  });
+  S.margin = data.margin || 0;
+  S.selected = 0;
+  S.selectedSeg = 0;
+  S.time = 0;
+  document.getElementById("margin").value = String(S.margin);
+  invalidate();
+  selectRobot(0);
+}
+
+function loadPlanText(text, sourceName) {
+  try {
+    const data = JSON.parse(text);
+    if (data.format && data.format !== "verniteyaku-alliance-plan") {
+      throw new Error("not a VerniteYaku plan file");
+    }
+    pushUndo();
+    applyPlan(data);
+  } catch (err) {
+    // Loading is the one place a user hands us arbitrary text, so say what was
+    // wrong with it rather than silently doing nothing.
+    alert(`Could not read ${sourceName || "that plan"}: ${err.message}`);
+  }
+}
+
+document.getElementById("saveBtn").addEventListener("click", () => {
+  const blob = new Blob([toJson()], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
+  a.download = `alliance-plan-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Revoking immediately can cancel the download in some browsers.
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+});
+
+document.getElementById("loadBtn").addEventListener("click", () => {
+  document.getElementById("fileInput").click();
+});
+
+document.getElementById("fileInput").addEventListener("change", e => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  file.text()
+    .then(text => loadPlanText(text, file.name))
+    .catch(err => alert("Could not read that file: " + err.message));
+  // Clear it, so re-opening the same filename fires 'change' again.
+  e.target.value = "";
+});
+
+// Drag a plan onto the field to open it.
+["dragenter", "dragover"].forEach(type =>
+  canvas.addEventListener(type, e => { e.preventDefault(); }));
+
+canvas.addEventListener("drop", e => {
+  e.preventDefault();
+  const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!file) return;
+  file.text()
+    .then(text => loadPlanText(text, file.name))
+    .catch(err => alert("Could not read that file: " + err.message));
+});
+
+document.getElementById("undoBtn").addEventListener("click", undo);
+document.getElementById("redoBtn").addEventListener("click", redo);
+
+document.getElementById("resetBtn").addEventListener("click", () => {
+  if (!confirm("Discard this plan and start over?")) return;
+  pushUndo();
+  const view = S.view;
+  S = defaultState();
+  S.view = view;
+  document.getElementById("margin").value = "0";
+  invalidate(); selectRobot(0);
+});
+
+/* --- boot ---------------------------------------------------------------- */
+
+window.addEventListener("resize", render);
+invalidate();
+selectRobot(0);
+render();
+</script>
+</body>
+</html>

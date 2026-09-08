@@ -1,0 +1,47 @@
+package com.verniteyaku.pathing.paths;
+
+import com.verniteyaku.pathing.geometry.Vector2d;
+import com.verniteyaku.pathing.units.DistanceUnit;
+
+/**
+ * A control point for a Bezier path, in the start-relative frame.
+ *
+ * <p>The bare {@code (x, y)} constructor takes inches. To work in another unit,
+ * use {@link #of(double, double, DistanceUnit)} -- the value is converted once,
+ * here, and everything downstream is canonical.
+ */
+public final class Point {
+
+    private final Vector2d vector;
+
+    /** A point in inches. */
+    public Point(double x, double y) {
+        this.vector = new Vector2d(x, y);
+    }
+
+    public Point(Vector2d vector) {
+        this.vector = vector;
+    }
+
+    /** A point in the given unit. */
+    public static Point of(double x, double y, DistanceUnit unit) {
+        return new Point(unit.toInches(x), unit.toInches(y));
+    }
+
+    public Vector2d toVector() {
+        return vector;
+    }
+
+    public double getX() {
+        return vector.x;
+    }
+
+    public double getY() {
+        return vector.y;
+    }
+
+    @Override
+    public String toString() {
+        return "Point" + vector;
+    }
+}

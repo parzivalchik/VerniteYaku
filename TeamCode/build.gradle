@@ -1,0 +1,28 @@
+plugins {
+    id 'com.android.library'
+}
+
+// A sample module, not a deployable app. It exists to prove the library
+// compiles against the real FTC SDK and to hold a worked example OpMode you can
+// copy into your own TeamCode. See the README for how to actually deploy it.
+android {
+    namespace 'org.firstinspires.ftc.teamcode'
+    compileSdk 30
+
+    defaultConfig {
+        minSdk 24
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation project(':ftc')
+
+    compileOnly 'org.firstinspires.ftc:RobotCore:11.0.0'
+    compileOnly 'org.firstinspires.ftc:Hardware:11.0.0'
+    compileOnly 'org.firstinspires.ftc:FtcCommon:11.0.0'
+}

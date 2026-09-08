@@ -1,0 +1,26 @@
+plugins {
+    id 'com.android.library'
+}
+
+android {
+    namespace 'com.verniteyaku.pathing.ftc'
+    compileSdk 30
+
+    defaultConfig {
+        minSdk 24
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // 'api', not 'implementation': a team depending on :ftc must be able to see
+    // Pose2d, PathBuilder and the rest without adding :core themselves.
+    api project(':core')
+
+    compileOnly 'org.firstinspires.ftc:RobotCore:11.0.0'
+    compileOnly 'org.firstinspires.ftc:Hardware:11.0.0'
+}
