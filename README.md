@@ -489,3 +489,9 @@ method breaks the build rather than breaking someone's auto at a competition.
 
 Explicitly out of scope: a physics/battery-sag simulator, swerve and x-drive
 implementations, and full MPC.
+
+---
+
+## Licence
+
+MIT. See [LICENSE](LICENSE).
