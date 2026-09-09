@@ -546,6 +546,12 @@ competition.
   saved `.json`.
 - **Cornering limit** matching `FollowerConstants.maxLateralAcceleration`, so a
   hairpin is planned at a speed the robot could actually hold.
+- **Ruler and protractor** (`M`) — drag to read a distance and a field heading
+  without dropping a throwaway path point just to see a coordinate. The angle is
+  a field heading, so it goes straight into `setConstantHeadingInterpolation`.
+- **Robot marker images** — drop a picture on either robot to tell them apart at
+  a glance. Painted into the footprint, so the picture is exactly the box that
+  gets collision-tested rather than a decoration at a different size.
 - **Keyboard shortcuts** behind the `?` button, or press `?`.
 
 Numbers in the planner are **planner-only**: motion limits and robot dimensions

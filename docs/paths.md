@@ -209,6 +209,10 @@ It keeps **named plan variants** — two or three candidate routes side by side,
 with New / Duplicate / Remove — rather than one plan you overwrite every time you
 try something.
 
+Press `M` for a ruler and protractor: drag anywhere to read a distance and a
+field heading, which is quicker than dropping a path point just to see a
+coordinate.
+
 Motion limits and robot dimensions in the planner are simulation settings. They
 do not reach your robot's code — copy them across yourself.
 
