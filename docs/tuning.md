@@ -67,6 +67,7 @@ is safe.
 | `maxVelocity` | Speed ceiling for the profile, per second |
 | `maxAcceleration` | How hard the robot can speed up |
 | `maxDeceleration` | How hard it can brake. Defaults to `maxAcceleration` |
+| `maxLateralAcceleration` | Cornering grip, in/s². Off by default — see below |
 
 `maxDeceleration` is separate because almost every robot brakes harder than it
 accelerates, and profiling both at the lower accel limit wastes real time on
@@ -76,6 +77,31 @@ Start `maxVelocity` at about **a third** of your eventual target. A tuning error
 at 15 in/s is a bad demo; the same error at 45 in/s is a broken robot.
 
 Per-segment caps: [`setMaxVelocity()`](paths.md#speed-caps).
+
+### maxLateralAcceleration — cornering grip
+
+**Off by default.** Left off, the profile will plan a hairpin at full speed. The
+robot then either slides — at which point the wheels are measuring something the
+chassis is not doing, and odometry goes with it — or fails to turn that tightly
+and cuts the corner.
+
+Turned on, the profile caps speed by what the corner physically allows:
+
+```
+v ≤ sqrt(a_lat / |curvature|)
+```
+
+and brakes into a tight corner ahead of time, exactly as it does for a
+per-segment cap, so the robot arrives already slow enough.
+
+The ceiling is the friction available, roughly `μ·g` — about 230–390 in/s² for
+mecanum on tiles, depending how clean they are. Measure yours: drive a circle of
+known radius, raise speed until the wheels break loose, compute `v² / r`, then
+take a good margin off it.
+
+It is off by default because enabling it slows some existing paths, and the right
+value has to be measured rather than guessed. A straight path is unaffected
+either way.
 
 ---
 

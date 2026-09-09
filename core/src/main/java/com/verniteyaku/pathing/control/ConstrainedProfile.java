@@ -119,6 +119,37 @@ public final class ConstrainedProfile {
         this.duration = times[samples];
     }
 
+    /**
+     * The fastest a robot may take a corner of the given curvature without
+     * exceeding a lateral acceleration limit.
+     *
+     * <p>On a curve of radius {@code r}, travelling at {@code v} costs
+     * {@code v^2 / r} of sideways acceleration, and curvature is {@code 1/r}, so
+     * the limit falls straight out:
+     *
+     * <pre>{@code v <= sqrt(a_lat / |curvature|)}</pre>
+     *
+     * <p>Without this the profile will happily plan a hairpin at top speed. The
+     * robot then either slides -- at which point the wheels are measuring
+     * something the chassis is not doing, and odometry goes with it -- or simply
+     * fails to turn that tightly and cuts the corner.
+     *
+     * <p>Returns infinity on a straight line, or when no limit is configured.
+     *
+     * @param curvature              signed curvature, 1/inches
+     * @param maxLateralAcceleration inches per second squared, or infinity
+     */
+    public static double lateralAccelerationLimit(double curvature,
+                                                  double maxLateralAcceleration) {
+        double magnitude = Math.abs(curvature);
+        if (magnitude < 1e-9
+                || !Double.isFinite(maxLateralAcceleration)
+                || maxLateralAcceleration <= 0) {
+            return Double.POSITIVE_INFINITY;
+        }
+        return Math.sqrt(maxLateralAcceleration / magnitude);
+    }
+
     /** A profile with one speed limit throughout. Equivalent to a trapezoid. */
     public ConstrainedProfile(double distance, double maxVelocity,
                               double maxAcceleration, double maxDeceleration) {

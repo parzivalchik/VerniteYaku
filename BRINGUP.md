@@ -1,6 +1,6 @@
 # Bring-up: getting VerniteYaku onto a real robot
 
-**None of this library has run on hardware.** 254 tests pass, but they are
+**None of this library has run on hardware.** 272 tests pass, but they are
 headless and the simulation is kinematic — no motor dynamics, no battery sag, no
 wheel slip. They prove the geometry, the control structure and the math converge.
 They do not prove any gain is right for your robot.
@@ -195,6 +195,9 @@ each.
 - [ ] A two-segment chain. Watch that it does not stop at the junction.
 - [ ] A segment with `setMaxVelocity` — the robot should already be slowed
       *before* it reaches the capped segment, not braking at the boundary.
+- [ ] A tight curve at speed. If the robot slides or cuts the corner, measure
+      your cornering grip and set `maxLateralAcceleration` — see
+      [tuning.md](docs/tuning.md#maxlateralacceleration--cornering-grip).
 
 ---
 

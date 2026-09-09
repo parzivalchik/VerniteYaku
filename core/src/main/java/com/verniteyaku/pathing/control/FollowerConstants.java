@@ -20,6 +20,7 @@ public final class FollowerConstants {
     private final double maxVelocity;
     private final double maxAcceleration;
     private final double maxDeceleration;
+    private final double maxLateralAcceleration;
 
     private final double kS;
     private final double kV;
@@ -49,6 +50,7 @@ public final class FollowerConstants {
         this.maxAcceleration = b.maxAcceleration;
         this.maxDeceleration = Double.isNaN(b.maxDeceleration)
                 ? b.maxAcceleration : b.maxDeceleration;
+        this.maxLateralAcceleration = b.maxLateralAcceleration;
         this.kS = b.kS;
         this.kV = b.kV;
         this.kA = b.kA;
@@ -80,6 +82,7 @@ public final class FollowerConstants {
         private double maxVelocity = Double.NaN;
         private double maxAcceleration = Double.NaN;
         private double maxDeceleration = Double.NaN;
+        private double maxLateralAcceleration = Double.POSITIVE_INFINITY;
 
         private double kS = 0.0;
         private double kV = Double.NaN;
@@ -130,6 +133,32 @@ public final class FollowerConstants {
          */
         public Builder maxDeceleration(double d) {
             this.maxDeceleration = unit.toInches(d);
+            return this;
+        }
+
+        /**
+         * How much sideways acceleration the robot may be asked for while
+         * cornering, per second squared, in this builder's unit.
+         *
+         * <p><b>Off by default</b>, and deliberately so: enabling it slows some
+         * existing paths, and the right value has to be measured rather than
+         * guessed. Left off, the profile will plan a hairpin at top speed, and
+         * the robot will either slide -- at which point the wheels measure
+         * something the chassis is not doing, and odometry goes with it -- or
+         * fail to turn that tightly and cut the corner.
+         *
+         * <p>The ceiling is the friction available: roughly {@code mu * g}, so
+         * about 230 to 390 in/s^2 for mecanum wheels on tiles depending on how
+         * clean they are. Measure yours by driving a circle of known radius,
+         * raising speed until the robot starts to slide, then computing
+         * {@code v^2 / r} and taking a good margin off it.
+         *
+         * <p>The follower brakes into a tight corner ahead of time, exactly as
+         * it does for a per-segment cap, so the robot arrives already slow
+         * enough rather than discovering the corner at speed.
+         */
+        public Builder maxLateralAcceleration(double a) {
+            this.maxLateralAcceleration = unit.toInches(a);
             return this;
         }
 
@@ -287,6 +316,10 @@ public final class FollowerConstants {
             if (reactiveErrorScale <= 0) {
                 throw new IllegalStateException("reactiveErrorScale must be positive");
             }
+            if (maxLateralAcceleration <= 0) {
+                throw new IllegalStateException(
+                        "maxLateralAcceleration must be positive, or infinite to disable");
+            }
             if (minConfidenceAuthority < 0 || minConfidenceAuthority > 1) {
                 throw new IllegalStateException(
                         "minConfidenceAuthority must be in [0, 1]; got " + minConfidenceAuthority);
@@ -305,6 +338,14 @@ public final class FollowerConstants {
 
     public double getMaxDeceleration() {
         return maxDeceleration;
+    }
+
+    /**
+     * The cornering acceleration limit, inches per second squared, or
+     * {@link Double#POSITIVE_INFINITY} when curvature is not limited.
+     */
+    public double getMaxLateralAcceleration() {
+        return maxLateralAcceleration;
     }
 
     public double getKS() {

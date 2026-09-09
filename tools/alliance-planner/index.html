@@ -368,6 +368,27 @@
   </div>
 
   <aside>
+    <!-- plans -->
+    <div class="card">
+      <h2>Plans<span class="spacer"></span><span class="idx" id="planCount"></span></h2>
+      <div class="row" style="margin-bottom:7px">
+        <select id="planSelect" style="flex:1"></select>
+      </div>
+      <div class="row" style="margin-bottom:7px">
+        <input type="text" id="planName" placeholder="Plan name">
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="planNew">New</button>
+        <button class="btn" id="planDuplicate">Duplicate</button>
+        <button class="btn danger" id="planRemove">Remove</button>
+      </div>
+      <div class="hint" style="margin-top:8px">
+        Candidate routes, kept side by side. Switching commits the one you are
+        leaving, so nothing is lost. Exports and the collision check always
+        describe the plan selected here.
+      </div>
+    </div>
+
     <!-- collision -->
     <div class="card">
       <h2>Collision</h2>
@@ -428,6 +449,16 @@
         <div class="row narrow"><label>Max vel</label><input type="text" inputmode="decimal" id="mv"></div>
         <div class="row narrow"><label>Accel</label><input type="text" inputmode="decimal" id="ma"></div>
         <div class="row narrow"><label>Decel</label><input type="text" inputmode="decimal" id="md"></div>
+        <div class="row narrow">
+          <label title="Cornering grip. Blank means corners are not speed-limited.">Lateral</label>
+          <input type="text" inputmode="decimal" id="mlat" placeholder="off">
+        </div>
+      </div>
+      <div class="hint" style="margin-top:8px">
+        <b>Lateral</b> caps how hard the robot may corner, in in/s&sup2;. Blank
+        plans hairpins at full speed, which a real robot slides through. Roughly
+        &mu;&middot;g &mdash; 230&ndash;390 for mecanum on clean tiles; measure
+        it by circling until the wheels break loose and take a margin off. Matches <code>FollowerConstants.maxLateralAcceleration</code>.
       </div>
       <div class="hint" style="margin-top:8px">
         The same trapezoidal profile the follower runs, so the timeline reflects
@@ -591,6 +622,7 @@ class BezierPath {
   constructor(points) {
     this.points = points;
     this.d1 = BezierPath.derivativePoints(points);
+    this.d2 = BezierPath.derivativePoints(this.d1);
     this.buildArcTable();
   }
 
@@ -631,6 +663,16 @@ class BezierPath {
 
   point(t) { return BezierPath.deCasteljau(this.points, clamp(t, 0, 1)); }
   derivative(t) { return BezierPath.deCasteljau(this.d1, clamp(t, 0, 1)); }
+  secondDerivative(t) { return BezierPath.deCasteljau(this.d2, clamp(t, 0, 1)); }
+
+  /** Signed curvature, 1/inches. Positive curves left. Mirrors Path.java. */
+  curvature(t) {
+    const d1 = this.derivative(t);
+    const d2 = this.secondDerivative(t);
+    const speed = Math.hypot(d1.x, d1.y);
+    if (speed < 1e-9) return 0;
+    return (d1.x * d2.y - d1.y * d2.x) / (speed * speed * speed);
+  }
 
   tAtArcLength(s) {
     if (s <= 0 || this.length < 1e-9) return 0;
@@ -661,6 +703,23 @@ function segmentHeading(seg, path, t) {
     case "reverseTangent": return normalizeAngle(path.tangentAngle(t) + Math.PI);
     default: return path.tangentAngle(t);
   }
+}
+
+/**
+ * The fastest a robot may take a corner of the given curvature without
+ * exceeding a lateral acceleration limit. Mirrors
+ * ConstrainedProfile.lateralAccelerationLimit in the Java library.
+ *
+ * On a curve of radius r, travelling at v costs v^2/r of sideways acceleration,
+ * and curvature is 1/r, so v <= sqrt(a_lat / |curvature|). Without it the
+ * profile plans a hairpin at top speed and the robot slides or cuts the corner.
+ */
+function lateralAccelerationLimit(curvature, maxLateralAccel) {
+  const k = Math.abs(curvature);
+  if (k < 1e-9 || !Number.isFinite(maxLateralAccel) || maxLateralAccel <= 0) {
+    return Infinity;
+  }
+  return Math.sqrt(maxLateralAccel / k);
 }
 
 /**
@@ -705,6 +764,15 @@ class ConstrainedProfile {
     }
 
     this.v = v; this.t = t; this.peak = peak; this.duration = t[samples];
+  }
+
+  /** Planned speed at a given arc length. Mirrors velocityAtArcLength in Java. */
+  velocityAt(arcLength) {
+    if (this.distance < 1e-9) return 0;
+    const scaled = clamp(arcLength, 0, this.distance) / this.step;
+    const i = Math.floor(scaled);
+    if (i >= this.v.length - 1) return this.v[this.v.length - 1];
+    return this.v[i] + (this.v[i + 1] - this.v[i]) * (scaled - i);
   }
 
   sample(time) {
@@ -757,6 +825,8 @@ function makeRobot(name, color, start, segments) {
     name, color, start,
     length: 17, width: 17,
     maxVel: 40, maxAccel: 50, maxDecel: 60,
+    // null means no cornering limit, matching the library's default.
+    maxLateralAccel: null,
     delay: 0,
     showHeadingArrow: true,
     segments,
@@ -794,6 +864,11 @@ function defaultState() {
       ])
     ],
     obstacles: [],
+    // Named plan variants. The live working copy is S.robots/obstacles/etc.;
+    // plans[activePlan].data holds the last committed state of each, so a team
+    // can keep two or three candidate routes rather than overwriting one.
+    plans: [{ name: "Plan A", data: null }],
+    activePlan: 0,
     // A plan that "just clears" at zero margin has no slack for the odometry
     // drift a real robot accumulates over a match, so new plans start with some.
     margin: 2,
@@ -842,16 +917,21 @@ function rebuild(robot) {
   for (const p of paths) { starts.push(running); running += p.length; }
   const total = running;
 
+  const lateral = robot.maxLateralAccel == null ? Infinity : robot.maxLateralAccel;
+
   const limitAt = s => {
     const clamped = clamp(s, 0, total);
+    let index = paths.length - 1;
     for (let i = 0; i < paths.length; i++) {
-      if (clamped <= starts[i] + paths[i].length) {
-        const cap = robot.segments[i].maxVel;
-        return cap == null ? robot.maxVel : Math.min(cap, robot.maxVel);
-      }
+      if (clamped <= starts[i] + paths[i].length) { index = i; break; }
     }
-    const cap = robot.segments[robot.segments.length - 1].maxVel;
-    return cap == null ? robot.maxVel : Math.min(cap, robot.maxVel);
+    const cap = robot.segments[index].maxVel;
+    const configured = cap == null ? robot.maxVel : Math.min(cap, robot.maxVel);
+
+    // What the corner physically allows, on top of whatever was configured.
+    const t = paths[index].tAtArcLength(clamped - starts[index]);
+    const cornering = lateralAccelerationLimit(paths[index].curvature(t), lateral);
+    return Math.min(configured, cornering);
   };
 
   // Split into runs at every wait.
@@ -1416,11 +1496,14 @@ function snapshot() {
   return JSON.stringify({
     margin: S.margin,
     robotCount: S.robotCount,
+    activePlan: S.activePlan,
+    plans: S.plans.map(p => ({ name: p.name, data: p.data })),
     obstacles: S.obstacles.map(o => ({ ...o })),
     robots: S.robots.map(r => ({
       name: r.name, start: { ...r.start },
       length: r.length, width: r.width,
       maxVel: r.maxVel, maxAccel: r.maxAccel, maxDecel: r.maxDecel,
+      maxLateralAccel: r.maxLateralAccel,
       delay: r.delay, showHeadingArrow: r.showHeadingArrow,
       segments: r.segments.map(sg => ({
         points: sg.points.map(pt => ({ ...pt })),
@@ -1435,6 +1518,10 @@ function restoreSnapshot(json) {
   const data = JSON.parse(json);
   S.margin = data.margin;
   S.robotCount = data.robotCount || 2;
+  if (data.plans) {
+    S.plans = data.plans.map(p => ({ name: p.name, data: p.data }));
+    S.activePlan = Math.min(data.activePlan || 0, S.plans.length - 1);
+  }
   S.obstacles = (data.obstacles || []).map(o => ({ ...o }));
   S.robots = data.robots.map((r, i) => {
     const robot = makeRobot(r.name, i === 0 ? "#f2734d" : "#4dc3f2", { ...r.start },
@@ -1443,6 +1530,7 @@ function restoreSnapshot(json) {
     Object.assign(robot, {
       length: r.length, width: r.width, maxVel: r.maxVel,
       maxAccel: r.maxAccel, maxDecel: r.maxDecel, delay: r.delay,
+      maxLateralAccel: r.maxLateralAccel == null ? null : r.maxLateralAccel,
       showHeadingArrow: r.showHeadingArrow !== false
     });
     return robot;
@@ -1453,6 +1541,7 @@ function restoreSnapshot(json) {
   S.selectedObstacle = null;
   document.getElementById("margin").value = fmtNum(S.margin);
   applyRobotCount();
+  renderPlans();
 }
 
 function pushUndoSnapshot(state) {
@@ -1818,6 +1907,101 @@ function updateVerdict() {
   el.innerHTML = parts.join("<br>");
 }
 
+/* ---------- named plan variants ---------- */
+
+/** Writes the live working state back into the plan it belongs to. */
+function commitActivePlan() {
+  const plan = S.plans[S.activePlan];
+  if (plan) plan.data = buildPlanObject();
+}
+
+function renderPlans() {
+  const sel = document.getElementById("planSelect");
+  sel.innerHTML = S.plans
+    .map((p, i) => `<option value="${i}"${i === S.activePlan ? " selected" : ""}>`
+      + `${p.name}</option>`)
+    .join("");
+  const nameEl = document.getElementById("planName");
+  if (document.activeElement !== nameEl) {
+    nameEl.value = S.plans[S.activePlan].name;
+  }
+  document.getElementById("planCount").textContent =
+    `${S.activePlan + 1} of ${S.plans.length}`;
+  document.getElementById("planRemove").disabled = S.plans.length <= 1;
+}
+
+function switchToPlan(index) {
+  if (index === S.activePlan || index < 0 || index >= S.plans.length) return;
+  pushUndo();
+  commitActivePlan();
+  S.activePlan = index;
+  applyPlan(S.plans[index].data);
+  renderPlans();
+}
+
+/** A name that does not collide with an existing one. */
+function uniquePlanName(base) {
+  const taken = new Set(S.plans.map(p => p.name));
+  if (!taken.has(base)) return base;
+  for (let n = 2; ; n++) {
+    const candidate = `${base} ${n}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+}
+
+document.getElementById("planSelect").addEventListener("change", e =>
+  switchToPlan(parseInt(e.target.value, 10)));
+
+document.getElementById("planName").addEventListener("focus", beginEdit);
+document.getElementById("planName").addEventListener("input", e => {
+  S.plans[S.activePlan].name = e.target.value || "Untitled";
+  renderPlans();
+});
+document.getElementById("planName").addEventListener("change", commitEdit);
+
+document.getElementById("planNew").addEventListener("click", () => {
+  pushUndo();
+  commitActivePlan();
+  const fresh = defaultState();
+  S.plans.push({
+    name: uniquePlanName("Plan " + String.fromCharCode(65 + S.plans.length)),
+    data: null
+  });
+  S.activePlan = S.plans.length - 1;
+  // A new plan starts from the default layout rather than a blank field, so
+  // there is something to drag immediately.
+  S.robots = fresh.robots;
+  S.obstacles = [];
+  S.margin = fresh.margin;
+  S.robotCount = fresh.robotCount;
+  S.selected = 0; S.selectedSeg = 0;
+  S.selectedPoint = null; S.selectedObstacle = null; S.time = 0;
+  document.getElementById("margin").value = fmtNum(S.margin);
+  commitActivePlan();
+  applyRobotCount(); invalidate(); selectRobot(0); renderPlans(); render();
+});
+
+document.getElementById("planDuplicate").addEventListener("click", () => {
+  pushUndo();
+  commitActivePlan();
+  const copy = JSON.parse(JSON.stringify(S.plans[S.activePlan].data));
+  S.plans.push({ name: uniquePlanName(S.plans[S.activePlan].name + " copy"),
+                 data: copy });
+  S.activePlan = S.plans.length - 1;
+  applyPlan(copy);
+  renderPlans();
+});
+
+document.getElementById("planRemove").addEventListener("click", () => {
+  if (S.plans.length <= 1) return;
+  if (!confirm(`Remove "${S.plans[S.activePlan].name}"?`)) return;
+  pushUndo();
+  S.plans.splice(S.activePlan, 1);
+  S.activePlan = Math.min(S.activePlan, S.plans.length - 1);
+  applyPlan(S.plans[S.activePlan].data);
+  renderPlans();
+});
+
 function selectRobot(i) {
   S.selected = Math.min(i, S.robotCount - 1);
   S.selectedSeg = Math.min(S.selectedSeg, S.robots[S.selected].segments.length - 1);
@@ -1862,6 +2046,11 @@ const fields = {
   delay: r => r.delay
 };
 
+/** Blank-able fields, where an empty string means "not set". */
+const optionalFields = {
+  mlat: r => r.maxLateralAccel
+};
+
 const setters = {
   // Editing the start position translates the whole plan, because the start
   // *is* the path's first point.
@@ -1894,6 +2083,19 @@ for (const id of Object.keys(fields)) {
     invalidate(); render();
   });
 }
+
+(() => {
+  const el = document.getElementById("mlat");
+  makeUndoable(el);
+  wireStepper(el, 10);
+  el.addEventListener("input", e => {
+    const parsed = parseNum(e.target.value);
+    selectedRobot().maxLateralAccel =
+      (e.target.value.trim() === "" || !Number.isFinite(parsed) || parsed <= 0)
+        ? null : parsed;
+    invalidate(); render();
+  });
+})();
 
 document.getElementById("arrowToggle").addEventListener("change", e => {
   pushUndo();
@@ -1931,6 +2133,11 @@ function syncPanel() {
   for (const id of Object.keys(fields)) {
     const el = document.getElementById(id);
     if (document.activeElement !== el) el.value = fmtNum(fields[id](r));
+  }
+  for (const id of Object.keys(optionalFields)) {
+    const el = document.getElementById(id);
+    const v = optionalFields[id](r);
+    if (document.activeElement !== el) el.value = v == null ? "" : fmtNum(v);
   }
   document.getElementById("robotTitle").textContent = r.name;
   document.getElementById("robotDot").style.background = r.color;
@@ -2351,6 +2558,8 @@ document.getElementById("resetBtn").addEventListener("click", () => {
   applyRobotCount();
   invalidate();
   selectRobot(0);
+  commitActivePlan();
+  renderPlans();
   render();
 });
 
@@ -2400,6 +2609,10 @@ function toJava(robot, varName) {
   lines.push(`// Profile: ${robot.maxVel} in/s, ${robot.maxAccel} in/s^2 accel, `
     + `${robot.maxDecel} in/s^2 decel`
     + (robot.delay > 0 ? `, after a ${robot.delay}s delay` : "") + ".");
+  if (robot.maxLateralAccel != null) {
+    lines.push(`//   .maxLateralAcceleration(${num(robot.maxLateralAccel)})`
+      + `  // on FollowerConstants, or corners are planned at full speed`);
+  }
 
   const waits = robot.segments.filter(s => s.waitAfter > 0);
   if (waits.length) {
@@ -2444,37 +2657,46 @@ function toPointsArray(robot) {
     + `double[][] points = {\n${rows.join(",\n")}\n};`;
 }
 
-/**
- * @param embeddedImage base64 backdrop to inline, or null. Produced on demand
- *                      rather than held in state, so an image never bloats an
- *                      undo snapshot.
- */
-function toJson(embeddedImage) {
-  return JSON.stringify({
-    format: "verniteyaku-alliance-plan",
-    version: 3,
-    units: "inches",
-    frame: "everything is field coordinates: origin at field centre, heading CCW from +X",
+/** The working state as a plan payload -- one entry in the plans list. */
+function buildPlanObject() {
+  return {
     margin: S.margin,
     robotCount: S.robotCount,
-    field: embeddedImage
-      ? { opacity: S.field.opacity, imageDataUrl: embeddedImage }
-      : { opacity: S.field.opacity },
     obstacles: S.obstacles.map(o => ({ ...o })),
     robots: activeRobots().map(r => ({
       name: r.name,
       start: { x: r.start.x, y: r.start.y, headingRad: r.start.heading },
       footprint: { length: r.length, width: r.width },
       motion: { maxVel: r.maxVel, maxAccel: r.maxAccel, maxDecel: r.maxDecel,
-                delay: r.delay },
+                maxLateralAccel: r.maxLateralAccel, delay: r.delay },
       segments: r.segments.map(s => ({
         points: s.points, headingMode: s.headingMode,
         headingA: s.headingA, headingB: s.headingB,
         maxVel: s.maxVel, waitAfter: s.waitAfter
       }))
-    })),
+    }))
+  };
+}
+
+/**
+ * @param embeddedImage base64 backdrop to inline, or null. Produced on demand
+ *                      rather than held in state, so an image never bloats an
+ *                      undo snapshot.
+ */
+function toJson(embeddedImage) {
+  commitActivePlan();
+  return JSON.stringify({
+    format: "verniteyaku-alliance-plan",
+    version: 4,
+    units: "inches",
+    frame: "everything is field coordinates: origin at field centre, heading CCW from +X",
+    field: embeddedImage
+      ? { opacity: S.field.opacity, imageDataUrl: embeddedImage }
+      : { opacity: S.field.opacity },
+    activePlan: S.activePlan,
+    plans: S.plans.map(p => ({ name: p.name, ...p.data })),
     analysis: {
-      duration: scan.duration,
+      activePlanDuration: scan.duration,
       collides: scan.firstHit !== null,
       firstCollisionTime: scan.firstHit,
       minClearance: scan.minClearance
@@ -2557,9 +2779,9 @@ exportMenu.addEventListener("click", e => {
   exportMenu.hidden = true;
 
   if (kind === "java") {
-    const which = isPaired()
-      ? "both robots (robot1 and robot2)"
-      : selectedRobot().name + " only";
+    const which = `${S.plans[S.activePlan].name} — `
+      + (isPaired() ? "both robots (robot1 and robot2)"
+                    : selectedRobot().name + " only");
     showText("Java code", activeRobots()
       .map((r, i) => toJava(r, isPaired() ? "robot" + (i + 1) : "path"))
       .join("\n\n"), which);
@@ -2596,7 +2818,29 @@ document.getElementById("saveBtn").addEventListener("click", savePlan);
 
 /* ---------- loading ---------- */
 
-function applyPlan(data) {
+/** Opens a whole file: its plans list, or a single plan from before v4. */
+function applyPlanFile(data) {
+  const plans = Array.isArray(data.plans) && data.plans.length
+    ? data.plans.map((p, i) => ({
+        name: p.name || `Plan ${String.fromCharCode(65 + i)}`,
+        data: p
+      }))
+    : [{ name: "Plan A", data }];
+
+  S.plans = plans;
+  S.activePlan = Math.min(data.activePlan || 0, plans.length - 1);
+
+  if (data.field) {
+    S.field.opacity = data.field.opacity != null ? data.field.opacity : 0.7;
+    document.getElementById("imgOpacity").value = fmtNum(Math.round(S.field.opacity * 100));
+    setFieldImageFromDataUrl(data.field.imageDataUrl || null, "from plan");
+  }
+
+  applyPlan(plans[S.activePlan].data, data.version);
+  renderPlans();
+}
+
+function applyPlan(data, fileVersion) {
   if (!Array.isArray(data.robots) || data.robots.length < 1 || data.robots.length > 2) {
     throw new Error("expected one or two robots, got "
       + (Array.isArray(data.robots) ? data.robots.length : "none"));
@@ -2607,7 +2851,8 @@ function applyPlan(data) {
   // Plans written before version 3 stored path points relative to the robot's
   // start. Lift them into field coordinates on load rather than silently
   // reading them as absolute, which would drop every path near the origin.
-  const legacyStartRelative = !data.version || data.version < 3;
+  const version = fileVersion !== undefined ? fileVersion : data.version;
+  const legacyStartRelative = !version || version < 3;
 
   S.robots = data.robots.map((r, i) => {
     const startHeading = r.start.headingRad;
@@ -2646,12 +2891,6 @@ function applyPlan(data) {
   S.selectedObstacle = null;
   S.time = 0;
 
-  if (data.field) {
-    S.field.opacity = data.field.opacity != null ? data.field.opacity : 0.7;
-    document.getElementById("imgOpacity").value = fmtNum(Math.round(S.field.opacity * 100));
-    setFieldImageFromDataUrl(data.field.imageDataUrl || null, "from plan");
-  }
-
   document.getElementById("margin").value = fmtNum(S.margin);
   applyRobotCount();
   invalidate();
@@ -2665,7 +2904,7 @@ function loadPlanText(text, sourceName) {
       throw new Error("not a VerniteYaku plan file");
     }
     pushUndo();
-    applyPlan(data);
+    applyPlanFile(data);
   } catch (err) {
     // Loading is the one place a user hands us arbitrary text, so say what was
     // wrong with it rather than silently doing nothing.
@@ -2753,6 +2992,8 @@ updateFieldImageLabel();
 applyRobotCount();
 invalidate();
 selectRobot(0);
+commitActivePlan();
+renderPlans();
 render();
 </script>
 </body>

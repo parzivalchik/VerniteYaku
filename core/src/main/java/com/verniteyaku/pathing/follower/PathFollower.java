@@ -128,13 +128,15 @@ public final class PathFollower implements Follower {
         feedforward.commitPending();
 
         this.path = path;
-        // Sampling the chain's own per-segment caps. With no overrides this is a
+        // Sampling the chain's own per-segment caps and what its curvature
+        // physically allows. With no overrides and no lateral limit this is a
         // constant ceiling and the result is the same trapezoid as before.
         final PathChain chainForLimit = path;
         final double globalMax = constants.getMaxVelocity();
+        final double lateral = constants.getMaxLateralAcceleration();
         this.profile = new ConstrainedProfile(
                 path.length(),
-                s -> chainForLimit.maxVelocityAtArcLength(s, globalMax),
+                s -> chainForLimit.speedLimitAtArcLength(s, globalMax, lateral),
                 constants.getMaxAcceleration(), constants.getMaxDeceleration());
 
         this.pathStartTime = clock.seconds();

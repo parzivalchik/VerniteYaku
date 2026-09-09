@@ -160,7 +160,9 @@ For anything else, implement `HeadingInterpolator` and pass it to
 .addPath(sprintBack)    // full speed again
 ```
 
-A segment cap never *raises* the global limit — it is always `min(cap, global)`.
+A segment cap never *raises* the global limit — it is always `min(cap, global)`,
+and a corner's own physical limit applies on top of it. See
+[`maxLateralAcceleration`](tuning.md#maxlateralacceleration--cornering-grip).
 
 The profile brakes into a capped segment **ahead of the boundary**, so the robot
 arrives already slowed rather than braking impossibly hard at the junction. That
@@ -202,6 +204,10 @@ Plan for **one robot** — a visual path editor for your own auto — or **two**
 which additionally checks both alliance partners' paths against each other.
 Either way it tests against **obstacles** you define, using the same exact
 rotated-rectangle intersection, with a 2" safety margin by default.
+
+It keeps **named plan variants** — two or three candidate routes side by side,
+with New / Duplicate / Remove — rather than one plan you overwrite every time you
+try something.
 
 Motion limits and robot dimensions in the planner are simulation settings. They
 do not reach your robot's code — copy them across yourself.

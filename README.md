@@ -144,7 +144,7 @@ tools/      The alliance collision planner (browser tool, no build step).
 The split between `core` and `ftc` is what makes `./gradlew :core:test` run on
 any laptop with a JDK, with no Android SDK, no emulator, and no robot. Every
 Bezier, every kinematics conversion, and the follower itself are exercised that
-way — 254 tests, all headless.
+way — 272 tests, all headless.
 
 `:ftc` and `:TeamCode` are only included in the build when an Android SDK is
 actually present, so cloning this repo and running the tests works on a machine
@@ -494,7 +494,8 @@ whatever got hit and when.
 ### Why the timeline is trustworthy
 
 It runs the same trapezoidal profile and the same forward-backward velocity
-solve the follower does, including per-segment speed caps. So the timeline
+solve the follower does, including per-segment speed caps and the same
+curvature-derived cornering limit. So the timeline
 reflects when each robot is actually *somewhere*, not just where its path goes.
 
 Per-robot **start delays** let you test "wait two seconds, then go" without
@@ -540,6 +541,11 @@ competition.
   auto. Drop one on the canvas to open it.
 - **Undo / redo** across every edit, plus a hard reset for a plan that has got
   somewhere you would rather not unpick a step at a time.
+- **Named plan variants** — New / Duplicate / Remove, so candidate routes sit
+  side by side instead of overwriting one another. Every plan is kept in the
+  saved `.json`.
+- **Cornering limit** matching `FollowerConstants.maxLateralAcceleration`, so a
+  hairpin is planned at a speed the robot could actually hold.
 - **Keyboard shortcuts** behind the `?` button, or press `?`.
 
 Numbers in the planner are **planner-only**: motion limits and robot dimensions

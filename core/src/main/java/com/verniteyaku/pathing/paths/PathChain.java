@@ -155,6 +155,36 @@ public final class PathChain {
         return Double.isNaN(cap) ? globalMax : Math.min(cap, globalMax);
     }
 
+    /**
+     * The signed curvature of the chain at {@code arcLength} inches, 1/inches.
+     * Positive curves left.
+     */
+    public double curvatureAtArcLength(double arcLength) {
+        return stateAtArcLength(arcLength).curvature;
+    }
+
+    /**
+     * The full speed ceiling at {@code arcLength}: the global limit, this
+     * segment's own cap if it has one, and whatever the corner's curvature
+     * physically allows, whichever is lowest.
+     *
+     * <p>This is what a constrained profile should sample. The two-argument
+     * {@link #maxVelocityAtArcLength} ignores curvature and is kept for callers
+     * that only care about the configured caps.
+     *
+     * @param maxLateralAcceleration inches per second squared, or
+     *                               {@link Double#POSITIVE_INFINITY} to ignore
+     *                               curvature entirely
+     */
+    public double speedLimitAtArcLength(double arcLength, double globalMax,
+                                        double maxLateralAcceleration) {
+        double configured = maxVelocityAtArcLength(arcLength, globalMax);
+        double cornering = com.verniteyaku.pathing.control.ConstrainedProfile
+                .lateralAccelerationLimit(curvatureAtArcLength(arcLength),
+                        maxLateralAcceleration);
+        return Math.min(configured, cornering);
+    }
+
     /** Whether any segment sets its own speed cap. */
     public boolean hasVelocityOverrides() {
         for (PathSegment segment : segments) {
