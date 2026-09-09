@@ -40,9 +40,20 @@ present, so this works on a machine that has never had Android Studio installed.
 
 ### FTC SDK version
 
-`:ftc` and `:TeamCode` compile against **FTC SDK 11.2.1**, pinned in their
-`build.gradle` files. Events run whatever is current, so check for a newer
-release before a competition and bump both files together.
+`:ftc` and `:TeamCode` compile against **FTC SDK 11.2.1** (released 2026-07-31),
+pinned in their `build.gradle` files. Events run whatever is current, so check
+for a newer release before a competition and bump both files together.
+
+Check it against a primary source, not a fork's README or a summary:
+
+- Releases: <https://github.com/FIRST-Tech-Challenge/FtcRobotController/releases>
+- The published coordinate, which is what Gradle actually resolves:
+  <https://repo1.maven.org/maven2/org/firstinspires/ftc/RobotCore/maven-metadata.xml>
+
+Note the two use different formats — a GitHub tag of `v11.2.1` is the Maven
+version `11.2.1`, and a tag like `v11.2` is `11.2.0`. After bumping, run
+`./gradlew :ftc:compileDebugJavaWithJavac --refresh-dependencies` before
+trusting it; an unresolvable pin fails at Gradle sync, not at runtime.
 
 They depend on the SDK with `compileOnly`, against the published AARs, rather
 than vendoring the robot-controller app. That matters for the toolchain: this
