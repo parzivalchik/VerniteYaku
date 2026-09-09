@@ -172,6 +172,12 @@ un-driven half the auto.
 ## Building paths visually
 
 `tools/alliance-planner/index.html` — a standalone browser tool, no build step.
-Drag path chains for two robots, check them for collisions, and export
-ready-to-paste `pathBuilder()` code in this same frame. See the
-[README](../README.md#alliance-planner).
+
+Drag path chains, scrub a timeline that runs the same profile the follower does,
+and export ready-to-paste `pathBuilder()` code in this same start-relative frame.
+
+Plan for **one robot** — just a visual path editor for your own auto — or **two**,
+which additionally checks both alliance partners' paths against each other for
+collisions using exact rotated-rectangle intersection. Switch under *Plan for*.
+
+See the [README](../README.md#alliance-planner).

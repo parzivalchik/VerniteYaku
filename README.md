@@ -449,9 +449,15 @@ for all three Phase 3 pieces working together.
 `tools/alliance-planner/index.html` — open it in a browser. No build step, no
 server, no dependency on the Java library.
 
-Plan two robots' autos against each other and find out whether they collide
-before you find out on the field. Drag multi-segment path chains for both robots,
-scrub a synced timeline, and get an exact answer.
+**Plan for one robot or two.** Pick under *Plan for*: two robots checks both
+alliance partners' autos against each other and tells you whether they collide
+before you find out on the field; one robot is just a path editor for your own
+auto, with the collision check switched off and everything else — the timeline,
+the profile, the Java export — unchanged. Robot 2 stays in memory while hidden,
+so switching back does not lose its path.
+
+Drag multi-segment path chains, scrub a synced timeline, and get an exact
+answer.
 
 Collision testing is the separating axis theorem on the two rotated rectangles,
 not a bounding-circle approximation. The difference is not academic — for two
@@ -481,7 +487,8 @@ because the library has no concept of where the field is and generating code tha
 implied otherwise would be a lie you would then have to debug.
 
 Plans **save and load as `.json`** — a real file you can commit next to your
-auto, reopen next week, or drop onto the field to load. Full undo/redo
+auto, reopen next week, or drop onto the field to load. One- and two-robot plans
+both round-trip, and a plan saved before the mode existed still opens. Full undo/redo
 (⌘/ctrl+Z), and ⌘/ctrl+S to save.
 
 `PlannerExportTest` compiles a verbatim copy of that export, so a renamed builder

@@ -179,7 +179,7 @@
 
 <header>
   <h1>VerniteYaku Alliance Planner</h1>
-  <span class="sub">Two-robot path collision checking &middot; field inches, headings CCW</span>
+  <span class="sub" id="headerSub">Two-robot path collision checking &middot; field inches, headings CCW</span>
   <span class="spacer"></span>
   <span class="sub" id="fps"></span>
 </header>
@@ -204,17 +204,28 @@
     <div class="card">
       <h2>Collision</h2>
       <div id="verdict" class="verdict">&mdash;</div>
-      <div class="row" style="margin-top:8px">
+      <div class="row" style="margin-top:8px" id="marginRow">
         <label>Safety margin</label>
         <input type="number" id="margin" value="0" step="0.5">
       </div>
-      <div class="hint">
+      <div class="hint" id="marginHint">
         Footprints are inflated by this many inches on every side before testing,
         so a plan that only just clears still reads as a hit.
       </div>
     </div>
 
-    <div class="tabs">
+    <div class="card">
+      <h2>Plan for</h2>
+      <div class="tabs" style="margin-bottom:0">
+        <button id="modeSolo">One robot</button>
+        <button id="modePair" class="on">Two robots</button>
+      </div>
+      <div class="hint" style="margin-top:8px" id="modeHint">
+        Checking both alliance partners' autos against each other.
+      </div>
+    </div>
+
+    <div class="tabs" id="robotTabs">
       <button id="tabR1" class="on">Robot 1</button>
       <button id="tabR2">Robot 2</button>
     </div>
@@ -284,6 +295,7 @@
         <span class="kbd">drag background</span> pan &middot;
         <span class="kbd">&#8984;/ctrl+Z</span> undo &middot;
         <span class="kbd">&#8984;/ctrl+S</span> save
+        <br>Switch between one- and two-robot planning under <b>Plan for</b>.
       </div>
     </div>
   </aside>
@@ -534,6 +546,9 @@ function defaultState() {
       ])
     ],
     margin: 0,
+    // How many robots this plan covers. Robot 2 is kept in memory either way,
+    // so switching to a single-robot plan and back does not lose its path.
+    robotCount: 2,
     selected: 0,
     selectedSeg: 0,
     time: 0,
@@ -544,6 +559,16 @@ function defaultState() {
 }
 
 let S = defaultState();
+
+/** The robots currently being planned. Length 1 or 2. */
+function activeRobots() {
+  return S.robots.slice(0, S.robotCount);
+}
+
+/** Whether this is a two-robot plan, and therefore has anything to collide. */
+function isPaired() {
+  return S.robotCount === 2;
+}
 
 /* --- undo ------------------------------------------------------------------
    Snapshots are the same JSON the plan exports, so anything that survives a
@@ -559,7 +584,8 @@ const redoStack = [];
 function snapshot() {
   return JSON.stringify({
     margin: S.margin,
-    robots: S.robots.map(r => ({
+    robotCount: S.robotCount,
+    robots: activeRobots().map(r => ({
       name: r.name,
       start: { ...r.start },
       length: r.length, width: r.width,
@@ -578,6 +604,7 @@ function snapshot() {
 function restoreSnapshot(json) {
   const data = JSON.parse(json);
   S.margin = data.margin;
+  S.robotCount = data.robotCount || 2;
   S.robots = data.robots.map((r, i) => {
     const robot = makeRobot(r.name, i === 0 ? "#f2734d" : "#4dc3f2",
       { ...r.start },
@@ -588,9 +615,10 @@ function restoreSnapshot(json) {
     robot.delay = r.delay;
     return robot;
   });
-  S.selected = Math.min(S.selected, S.robots.length - 1);
+  S.selected = Math.min(S.selected, S.robotCount - 1);
   S.selectedSeg = Math.min(S.selectedSeg, S.robots[S.selected].segments.length - 1);
   document.getElementById("margin").value = String(S.margin);
+  applyRobotCount();
 }
 
 function pushUndoSnapshot(state) {
@@ -689,7 +717,7 @@ function cacheOf(robot) { return robot._cache || rebuild(robot); }
 function robotDuration(robot) { return robot.delay + cacheOf(robot).profile.duration; }
 
 function totalDuration() {
-  return Math.max(0.001, ...S.robots.map(robotDuration));
+  return Math.max(0.001, ...activeRobots().map(robotDuration));
 }
 
 /** Start-relative pose at arc length s. */
@@ -789,8 +817,18 @@ function overlapDepth(a, b) {
 
 /** Sweeps the whole timeline and reports the worst moment. */
 function scanCollisions() {
-  const [a, b] = S.robots;
   const duration = totalDuration();
+
+  // A single robot has nothing to collide with. Everything else -- the paths,
+  // the profile, the timeline -- still works; only the pairwise test is skipped.
+  if (!isPaired()) {
+    return {
+      duration, solo: true,
+      firstHit: null, hits: [], minClearance: 0, minClearanceTime: 0
+    };
+  }
+
+  const [a, b] = S.robots;
   const inflate = S.margin / 2; // half each, so the pair is separated by `margin`
 
   let firstHit = null;
@@ -1022,16 +1060,17 @@ function render() {
   ctx.clearRect(0, 0, rect.width, rect.height);
   drawField(rect);
 
-  S.robots.forEach((r, i) => drawPath(r, rect, i === S.selected));
+  const robots = activeRobots();
+  robots.forEach((r, i) => drawPath(r, rect, i === S.selected));
 
-  const poses = S.robots.map(r => poseAtTime(r, S.time));
+  const poses = robots.map(r => poseAtTime(r, S.time));
   const inflate = S.margin / 2;
-  const colliding = overlapDepth(
-    corners(poses[0], S.robots[0].length, S.robots[0].width, inflate),
-    corners(poses[1], S.robots[1].length, S.robots[1].width, inflate)) > 0;
+  const colliding = isPaired() && overlapDepth(
+    corners(poses[0], robots[0].length, robots[0].width, inflate),
+    corners(poses[1], robots[1].length, robots[1].width, inflate)) > 0;
 
-  S.robots.forEach((r, i) => drawStartHandle(rect, r, i === S.selected));
-  S.robots.forEach((r, i) => drawRobot(rect, r, poses[i], colliding));
+  robots.forEach((r, i) => drawStartHandle(rect, r, i === S.selected));
+  robots.forEach((r, i) => drawRobot(rect, r, poses[i], colliding));
 
   renderTimeline();
 }
@@ -1047,7 +1086,7 @@ function renderTimeline() {
   const xOf = t => (t / duration) * rect.width;
 
   // Per-robot active spans, so a delayed start is visible.
-  S.robots.forEach((r, i) => {
+  activeRobots().forEach((r, i) => {
     const y = 4 + i * 13;
     tlCtx.fillStyle = r.color + "55";
     tlCtx.fillRect(xOf(r.delay), y, xOf(cacheOf(r).profile.duration), 9);
@@ -1111,14 +1150,19 @@ canvas.addEventListener("pointerdown", e => {
   const rect = canvas.getBoundingClientRect();
   const px = e.clientX - rect.left, py = e.clientY - rect.top;
 
-  // Clicking near the other robot selects it instead of panning.
-  const other = 1 - S.selected;
-  const os = worldToScreen(S.robots[other].start.x, S.robots[other].start.y, rect);
-  const oradius = Math.max(S.robots[other].length, S.robots[other].width) / 2 * S.view.scale + 10;
   const hit = hitTest(px, py, rect);
-  if (hit.kind === "pan" && Math.hypot(px - os.x, py - os.y) < oradius) {
-    selectRobot(other);
-    return;
+
+  // Clicking near the other robot selects it instead of panning -- but only
+  // when there is another robot to select.
+  if (isPaired() && hit.kind === "pan") {
+    const other = 1 - S.selected;
+    const os = worldToScreen(S.robots[other].start.x, S.robots[other].start.y, rect);
+    const oradius =
+      Math.max(S.robots[other].length, S.robots[other].width) / 2 * S.view.scale + 10;
+    if (Math.hypot(px - os.x, py - os.y) < oradius) {
+      selectRobot(other);
+      return;
+    }
   }
 
   // One undo entry per drag gesture, not per pointermove.
@@ -1286,6 +1330,14 @@ function invalidate() {
 
 function updateVerdict() {
   const el = document.getElementById("verdict");
+
+  if (scan.solo) {
+    el.className = "verdict";
+    el.innerHTML = `Single-robot plan &mdash; no collision check. `
+      + `Run takes <b>${scan.duration.toFixed(2)} s</b>.`;
+    return;
+  }
+
   if (scan.firstHit !== null) {
     const last = scan.hits[scan.hits.length - 1];
     el.className = "verdict hit";
@@ -1299,7 +1351,8 @@ function updateVerdict() {
 }
 
 function selectRobot(i) {
-  S.selected = i;
+  S.selected = Math.min(i, S.robotCount - 1);
+  i = S.selected;
   S.selectedSeg = Math.min(S.selectedSeg, S.robots[i].segments.length - 1);
   document.getElementById("tabR1").classList.toggle("on", i === 0);
   document.getElementById("tabR2").classList.toggle("on", i === 1);
@@ -1309,6 +1362,38 @@ function selectRobot(i) {
 
 document.getElementById("tabR1").addEventListener("click", () => selectRobot(0));
 document.getElementById("tabR2").addEventListener("click", () => selectRobot(1));
+
+function setRobotCount(count) {
+  if (S.robotCount === count) return;
+  pushUndo();
+  S.robotCount = count;
+  // Robot 2 stays in memory while hidden, so toggling back restores its path
+  // rather than making you draw it again.
+  if (S.selected >= count) S.selected = 0;
+  applyRobotCount();
+  invalidate();
+  selectRobot(S.selected);
+}
+
+/** Shows or hides everything that only makes sense with a second robot. */
+function applyRobotCount() {
+  const paired = isPaired();
+  document.getElementById("modeSolo").classList.toggle("on", !paired);
+  document.getElementById("modePair").classList.toggle("on", paired);
+  document.getElementById("tabR2").style.display = paired ? "" : "none";
+  document.getElementById("robotTabs").style.display = paired ? "" : "none";
+  document.getElementById("marginRow").style.display = paired ? "" : "none";
+  document.getElementById("marginHint").style.display = paired ? "" : "none";
+  document.getElementById("modeHint").textContent = paired
+    ? "Checking both alliance partners' autos against each other."
+    : "Planning one robot's auto. No collision checking.";
+  document.getElementById("headerSub").innerHTML = paired
+    ? "Two-robot path collision checking &middot; field inches, headings CCW"
+    : "Single-robot auto planning &middot; field inches, headings CCW";
+}
+
+document.getElementById("modeSolo").addEventListener("click", () => setRobotCount(1));
+document.getElementById("modePair").addEventListener("click", () => setRobotCount(2));
 
 const fields = {
   sx: r => r.start.x, sy: r => r.start.y,
@@ -1570,7 +1655,8 @@ function toJson() {
     units: "inches",
     frame: "path points are start-relative; start poses are field coordinates",
     margin: S.margin,
-    robots: S.robots.map(r => ({
+    robotCount: S.robotCount,
+    robots: activeRobots().map(r => ({
       name: r.name,
       start: { x: r.start.x, y: r.start.y, headingRad: r.start.heading },
       footprint: { length: r.length, width: r.width },
@@ -1595,7 +1681,8 @@ function toJson() {
 
 function updateExport() {
   document.getElementById("exportBox").value = S.exportMode === "java"
-    ? S.robots.map((r, i) => toJava(r, "robot" + (i + 1))).join("\n\n")
+    ? activeRobots().map((r, i) => toJava(r, isPaired() ? "robot" + (i + 1) : "path"))
+        .join("\n\n")
     : toJson();
 }
 
@@ -1627,9 +1714,11 @@ document.getElementById("copyBtn").addEventListener("click", async () => {
 });
 
 function applyPlan(data) {
-  if (!Array.isArray(data.robots) || data.robots.length !== 2) {
-    throw new Error("expected exactly two robots");
+  if (!Array.isArray(data.robots) || data.robots.length < 1 || data.robots.length > 2) {
+    throw new Error("expected one or two robots, got "
+      + (Array.isArray(data.robots) ? data.robots.length : "none"));
   }
+  S.robotCount = data.robotCount || data.robots.length;
   S.robots = data.robots.map((r, i) => {
     const robot = makeRobot(
       r.name || `Robot ${i + 1}`,
@@ -1642,11 +1731,18 @@ function applyPlan(data) {
     Object.assign(robot, r.motion || {});
     return robot;
   });
+  // A one-robot plan still needs a second robot in memory, so switching to a
+  // paired plan afterwards has something to work with.
+  if (S.robots.length < 2) {
+    S.robots.push(defaultState().robots[1]);
+  }
+
   S.margin = data.margin || 0;
   S.selected = 0;
   S.selectedSeg = 0;
   S.time = 0;
   document.getElementById("margin").value = String(S.margin);
+  applyRobotCount();
   invalidate();
   selectRobot(0);
 }
@@ -1714,15 +1810,19 @@ document.getElementById("resetBtn").addEventListener("click", () => {
   if (!confirm("Discard this plan and start over?")) return;
   pushUndo();
   const view = S.view;
+  const count = S.robotCount;
   S = defaultState();
   S.view = view;
+  S.robotCount = count;
   document.getElementById("margin").value = "0";
+  applyRobotCount();
   invalidate(); selectRobot(0);
 });
 
 /* --- boot ---------------------------------------------------------------- */
 
 window.addEventListener("resize", render);
+applyRobotCount();
 invalidate();
 selectRobot(0);
 render();
