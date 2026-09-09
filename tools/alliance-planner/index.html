@@ -3,209 +3,368 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VerniteYaku Alliance Planner</title>
+<title>VerniteYaku Planner</title>
 <style>
   :root {
-    --bg: #14161a;
-    --panel: #1c1f26;
-    --panel-2: #23272f;
-    --line: #333944;
-    --text: #e6e9ef;
-    --muted: #97a0b0;
+    --bg: #0e1013;
+    --field-bg: #191c21;
+    --panel: #16191e;
+    --card: #1d2026;
+    --card-2: #23272e;
+    --line: #2e333c;
+    --line-soft: #262b33;
+    --text: #e8ebf0;
+    --muted: #909aa8;
     --accent: #6ea8fe;
     --r1: #f2734d;
     --r2: #4dc3f2;
     --danger: #ff5d5d;
+    --warn: #ffcf7a;
     --ok: #4ade80;
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
 
   * { box-sizing: border-box; }
 
+  html, body { height: 100%; }
+
   body {
     margin: 0;
     background: var(--bg);
     color: var(--text);
     font: 13px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
-    height: 100vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    -webkit-font-smoothing: antialiased;
   }
 
-  header {
+  /* ---------- toolbar ---------- */
+
+  #toolbar {
     display: flex;
-    align-items: baseline;
-    gap: 14px;
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--line);
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
     background: var(--panel);
+    border-bottom: 1px solid var(--line);
     flex: 0 0 auto;
+    min-height: 52px;
   }
-  header h1 { font-size: 14px; margin: 0; font-weight: 600; letter-spacing: .01em; }
-  header .sub { color: var(--muted); font-size: 12px; }
-  header .spacer { flex: 1; }
+
+  .brand { display: flex; align-items: center; gap: 8px; }
+  .brand h1 { font-size: 15px; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+  .brand a { color: var(--muted); display: flex; }
+  .brand a:hover { color: var(--text); }
+
+  .readout {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--muted);
+    white-space: nowrap;
+    padding: 0 4px;
+  }
+  .readout b { color: var(--text); font-weight: 600; }
+
+  .tb-sep { width: 1px; align-self: stretch; background: var(--line); margin: 2px 2px; }
+  .tb-spacer { flex: 1; }
+
+  .icon-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; height: 30px;
+    background: transparent; color: var(--muted);
+    border: 1px solid transparent; border-radius: 6px;
+    cursor: pointer; padding: 0;
+  }
+  .icon-btn:hover:not(:disabled) { background: var(--card-2); color: var(--text); }
+  .icon-btn.on { background: var(--accent); color: #0d1117; border-color: var(--accent); }
+  .icon-btn:disabled { opacity: .3; cursor: default; }
+  .icon-btn svg { width: 17px; height: 17px; }
+
+  .seg-control {
+    display: inline-flex; border: 1px solid var(--line);
+    border-radius: 6px; overflow: hidden;
+  }
+  .seg-control button {
+    background: var(--card); color: var(--muted); border: 0;
+    padding: 6px 11px; font: inherit; font-size: 12px; cursor: pointer;
+  }
+  .seg-control button + button { border-left: 1px solid var(--line); }
+  .seg-control button.on { background: var(--accent); color: #0d1117; font-weight: 600; }
+  .seg-control button:hover:not(.on) { background: var(--card-2); color: var(--text); }
+
+  .menu-wrap { position: relative; }
+  .menu {
+    position: absolute; top: calc(100% + 6px); right: 0;
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 8px; padding: 5px; min-width: 190px;
+    box-shadow: 0 12px 32px rgba(0,0,0,.55);
+    z-index: 50;
+  }
+  .menu button {
+    display: block; width: 100%; text-align: left;
+    background: transparent; color: var(--text); border: 0;
+    padding: 8px 10px; border-radius: 5px; font: inherit; cursor: pointer;
+  }
+  .menu button:hover { background: var(--card-2); }
+  .menu hr { border: 0; border-top: 1px solid var(--line); margin: 5px 2px; }
+  .menu .menu-note {
+    padding: 4px 10px 6px; color: var(--muted); font-size: 11px; line-height: 1.4;
+  }
+
+  /* ---------- layout ---------- */
 
   main { flex: 1; display: flex; min-height: 0; }
 
   #stage {
-    flex: 1;
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    background: #0f1114;
+    flex: 1; min-width: 0; display: flex; flex-direction: column;
+    background: var(--bg);
   }
   #canvasWrap { flex: 1; position: relative; min-height: 0; }
-  canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #field { position: absolute; inset: 0; width: 100%; height: 100%; }
 
   aside {
-    width: 340px;
-    flex: 0 0 340px;
-    border-left: 1px solid var(--line);
+    width: 372px; flex: 0 0 372px;
     background: var(--panel);
-    overflow-y: auto;
-    padding: 12px;
+    border-left: 1px solid var(--line);
+    overflow-y: auto; padding: 12px;
   }
+  aside::-webkit-scrollbar { width: 10px; }
+  aside::-webkit-scrollbar-thumb { background: var(--line); border-radius: 5px; }
+
+  /* ---------- panel widgets ---------- */
 
   .card {
-    background: var(--panel-2);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 10px;
-    margin-bottom: 10px;
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 9px; padding: 11px; margin-bottom: 10px;
   }
-  .card h2 {
-    font-size: 12px;
-    margin: 0 0 8px;
-    text-transform: uppercase;
-    letter-spacing: .07em;
-    color: var(--muted);
-    font-weight: 600;
+  .card > h2 {
+    font-size: 11px; margin: 0 0 9px; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--muted); font-weight: 650;
+    display: flex; align-items: center; gap: 7px;
   }
-  .card h2 .dot {
-    display: inline-block; width: 8px; height: 8px;
-    border-radius: 50%; margin-right: 6px; vertical-align: baseline;
-  }
+  .card > h2 .spacer { flex: 1; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
 
-  .row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
-  .row label { flex: 0 0 88px; color: var(--muted); font-size: 12px; }
-  .row.tight label { flex: 0 0 60px; }
+  .row { display: flex; gap: 7px; align-items: center; margin-bottom: 7px; }
+  .row:last-child { margin-bottom: 0; }
+  .row > label { flex: 0 0 82px; color: var(--muted); font-size: 12px; }
+  .row.narrow > label { flex: 0 0 56px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
 
-  input[type=number], select, input[type=text] {
-    background: #14171d;
-    color: var(--text);
-    border: 1px solid var(--line);
-    border-radius: 5px;
-    padding: 4px 6px;
-    font: inherit;
-    width: 100%;
-    min-width: 0;
+  input[type=number], input[type=text], select {
+    background: #0f1216; color: var(--text);
+    border: 1px solid var(--line); border-radius: 6px;
+    padding: 5px 7px; font: inherit; width: 100%; min-width: 0;
   }
-  input[type=number]:focus, select:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+  input:focus, select:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(110,168,254,.18);
+  }
+  input[type=color] {
+    width: 30px; height: 26px; padding: 1px; border-radius: 5px;
+    border: 1px solid var(--line); background: #0f1216; cursor: pointer;
+  }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
 
-  button {
-    background: var(--panel-2);
-    color: var(--text);
-    border: 1px solid var(--line);
-    border-radius: 5px;
-    padding: 5px 9px;
-    font: inherit;
-    cursor: pointer;
+  button.btn {
+    background: var(--card-2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 6px;
+    padding: 6px 10px; font: inherit; cursor: pointer;
   }
-  button:hover { background: #2c313b; }
-  button.primary { background: var(--accent); color: #0d1117; border-color: var(--accent); font-weight: 600; }
-  button.primary:hover { filter: brightness(1.1); }
-  button.danger { color: var(--danger); }
-  button:disabled { opacity: .45; cursor: default; }
-
-  .seg {
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    padding: 7px;
-    margin-bottom: 6px;
-    background: #191c22;
+  button.btn:hover:not(:disabled) { background: #2b303a; }
+  button.btn.primary {
+    background: var(--accent); color: #0d1117; border-color: var(--accent); font-weight: 600;
   }
-  .seg.sel { border-color: var(--accent); }
-  .seg-head {
-    display: flex; align-items: center; gap: 6px;
-    margin-bottom: 6px; font-size: 12px;
-  }
-  .seg-head .idx { color: var(--muted); font-family: var(--mono); }
-  .seg-head .spacer { flex: 1; }
-  .cap-tag {
-    font-family: var(--mono); font-size: 10px; color: #ffcf7a;
-    border: 1px solid #5c4a26; border-radius: 3px; padding: 0 3px;
-  }
-  .seg-head button { padding: 2px 6px; font-size: 11px; }
-
-  #timeline {
-    flex: 0 0 auto;
-    border-top: 1px solid var(--line);
-    background: var(--panel);
-    padding: 8px 14px 10px;
-  }
-  .tl-controls { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-  .tl-controls .time { font-family: var(--mono); font-size: 12px; color: var(--muted); min-width: 130px; }
-  #scrub { flex: 1; }
-  #tlCanvas { width: 100%; height: 34px; display: block; border-radius: 4px; }
+  button.btn.primary:hover { filter: brightness(1.08); }
+  button.btn.danger { color: var(--danger); }
+  button.btn:disabled { opacity: .4; cursor: default; }
+  .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
 
   .verdict {
-    padding: 7px 9px; border-radius: 6px; font-size: 12px;
-    border: 1px solid var(--line); background: #191c22;
+    padding: 8px 10px; border-radius: 7px; font-size: 12.5px;
+    border: 1px solid var(--line); background: #14171c; line-height: 1.45;
   }
-  .verdict.clear { border-color: #2c5f3f; color: var(--ok); }
-  .verdict.hit { border-color: #6b2a2a; color: var(--danger); }
+  .verdict.clear { border-color: #2c5f3f; color: var(--ok); background: #121a15; }
+  .verdict.hit { border-color: #6b2a2a; color: var(--danger); background: #1a1213; }
   .verdict b { font-family: var(--mono); }
 
+  .hint { color: var(--muted); font-size: 11px; line-height: 1.5; }
+  .hint code { font-family: var(--mono); color: var(--text); }
+
+  /* list items: paths, obstacles */
+  .item {
+    border: 1px solid var(--line); border-radius: 7px;
+    padding: 8px; margin-bottom: 7px; background: #14171c;
+  }
+  .item.sel { border-color: var(--accent); background: #161c26; }
+  .item-head {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 12.5px; margin-bottom: 7px;
+  }
+  .item-head .idx { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+  .item-head .spacer { flex: 1; }
+  .item-head .mini {
+    background: transparent; border: 1px solid var(--line); color: var(--muted);
+    border-radius: 4px; padding: 1px 6px; font-size: 11px; cursor: pointer;
+  }
+  .item-head .mini:hover { color: var(--text); background: var(--card-2); }
+  .item-head .mini.danger:hover { color: var(--danger); border-color: #6b2a2a; }
+
+  .tag {
+    font-family: var(--mono); font-size: 10px; padding: 1px 5px;
+    border-radius: 3px; border: 1px solid var(--line-soft); color: var(--muted);
+  }
+  .tag.cap { color: var(--warn); border-color: #5c4a26; }
+  .tag.wait { color: var(--accent); border-color: #2f4468; }
+
   textarea {
-    width: 100%; height: 150px; background: #101318; color: var(--text);
-    border: 1px solid var(--line); border-radius: 6px; padding: 8px;
-    font: 11px/1.45 var(--mono); resize: vertical; white-space: pre;
+    width: 100%; height: 150px; background: #0d1014; color: var(--text);
+    border: 1px solid var(--line); border-radius: 7px; padding: 9px;
+    font: 11px/1.5 var(--mono); resize: vertical; white-space: pre;
   }
 
-  .hint { color: var(--muted); font-size: 11px; line-height: 1.45; }
-  .kbd {
-    font-family: var(--mono); background: #101318; border: 1px solid var(--line);
-    border-radius: 3px; padding: 0 4px;
-  }
-  .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
-  .tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+  .tabs { display: flex; gap: 5px; margin-bottom: 9px; }
   .tabs button { flex: 1; }
-  .tabs button.on { background: var(--accent); color: #0d1117; border-color: var(--accent); font-weight: 600; }
+  .tabs button.on {
+    background: var(--accent); color: #0d1117; border-color: var(--accent); font-weight: 600;
+  }
+
+  .kv {
+    display: grid; grid-template-columns: auto 1fr; gap: 3px 12px;
+    font-family: var(--mono); font-size: 12px;
+  }
+  .kv span:nth-child(odd) { color: var(--muted); }
+
+  /* ---------- playback ---------- */
+
+  #playbar {
+    flex: 0 0 auto; background: var(--panel);
+    border-top: 1px solid var(--line); padding: 8px 12px 10px;
+  }
+  .pb-row { display: flex; align-items: center; gap: 10px; }
+  #scrub { flex: 1; }
+  .pb-time {
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    min-width: 118px; text-align: right;
+  }
+  #tlCanvas {
+    width: 100%; height: 30px; display: block;
+    border-radius: 5px; margin-top: 7px; cursor: pointer;
+  }
+
+  .kbd {
+    font-family: var(--mono); background: #0d1014; border: 1px solid var(--line);
+    border-radius: 3px; padding: 0 4px; font-size: 11px;
+  }
+  .drop-hint {
+    position: absolute; inset: 0; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(110,168,254,.10); border: 2px dashed var(--accent);
+    color: var(--accent); font-weight: 600; pointer-events: none; z-index: 5;
+  }
+  .drop-hint.on { display: flex; }
 </style>
 </head>
 <body>
 
-<header>
-  <h1>VerniteYaku Alliance Planner</h1>
-  <span class="sub" id="headerSub">Two-robot path collision checking &middot; field inches, headings CCW</span>
-  <span class="spacer"></span>
-  <span class="sub" id="fps"></span>
-</header>
+<div id="toolbar">
+  <div class="brand">
+    <h1>VerniteYaku Planner</h1>
+    <a href="https://github.com/parzivalchik/VerniteYaku" target="_blank" rel="noopener"
+       title="Repository">
+      <svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+    </a>
+  </div>
+
+  <div class="tb-sep"></div>
+  <div class="readout" id="tbReadout">0.00s &middot; 0 in</div>
+  <div class="tb-sep"></div>
+
+  <button class="icon-btn" id="undoBtn" title="Undo (Cmd/Ctrl+Z)" disabled>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+  </button>
+  <button class="icon-btn" id="redoBtn" title="Redo (Cmd/Ctrl+Shift+Z)" disabled>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>
+  </button>
+  <button class="icon-btn on" id="gridBtn" title="Toggle tile grid">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>
+  </button>
+  <button class="icon-btn" id="fitBtn" title="Fit field to view">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/></svg>
+  </button>
+
+  <div class="tb-sep"></div>
+
+  <div class="seg-control">
+    <button id="modeSolo">One robot</button>
+    <button id="modePair" class="on">Two robots</button>
+  </div>
+
+  <div class="tb-spacer"></div>
+
+  <button class="icon-btn" id="openBtn" title="Open plan (.json)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M12 3v12"/><path d="m7 8 5-5 5 5"/></svg>
+  </button>
+  <button class="icon-btn" id="saveBtn" title="Save plan (Cmd/Ctrl+S)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+  </button>
+
+  <div class="menu-wrap">
+    <button class="icon-btn" id="exportBtn" title="Export">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></svg>
+    </button>
+    <div class="menu" id="exportMenu" hidden>
+      <button data-export="java">Java Code</button>
+      <button data-export="json">Plan JSON</button>
+      <button data-export="points">Points Array</button>
+      <hr>
+      <button data-export="png">Field as Image</button>
+    </div>
+  </div>
+
+  <input type="file" id="fileInput" accept=".json,application/json" hidden>
+  <input type="file" id="imageInput" accept="image/*" hidden>
+</div>
 
 <main>
   <div id="stage">
-    <div id="canvasWrap"><canvas id="field"></canvas></div>
-    <div id="timeline">
-      <div class="tl-controls">
-        <button id="playBtn" class="primary">Play</button>
-        <button id="rewindBtn">Rewind</button>
-        <button id="undoBtn" title="Undo (Cmd/Ctrl+Z)" disabled>&#8630;</button>
-        <button id="redoBtn" title="Redo (Cmd/Ctrl+Shift+Z)" disabled>&#8631;</button>
+    <div id="canvasWrap">
+      <canvas id="field"></canvas>
+      <div class="drop-hint" id="dropHint">Drop a plan (.json) or a field image</div>
+    </div>
+
+    <div id="playbar">
+      <div class="pb-row">
+        <button class="icon-btn" id="playBtn" title="Play / pause (space)">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <button class="icon-btn" id="rewindBtn" title="Rewind">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 19 2 12l9-7v14zM22 19l-9-7 9-7v14z"/></svg>
+        </button>
+        <button class="icon-btn" id="loopBtn" title="Loop playback">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+        </button>
+        <select id="speedSel" style="width:74px;flex:0 0 auto" title="Playback speed">
+          <option value="0.25">0.25&times;</option>
+          <option value="0.5">0.5&times;</option>
+          <option value="1" selected>1&times;</option>
+          <option value="2">2&times;</option>
+        </select>
         <input type="range" id="scrub" min="0" max="1000" value="0">
-        <span class="time" id="timeLabel">0.00 s / 0.00 s</span>
+        <span class="pb-time" id="timeLabel">0.00 / 0.00 s</span>
       </div>
       <canvas id="tlCanvas"></canvas>
     </div>
   </div>
 
   <aside>
+    <!-- collision -->
     <div class="card">
       <h2>Collision</h2>
       <div id="verdict" class="verdict">&mdash;</div>
-      <div class="row" style="margin-top:8px" id="marginRow">
-        <label>Safety margin</label>
+      <div class="row narrow" id="marginRow" style="margin-top:9px">
+        <label>Margin</label>
         <input type="number" id="margin" value="0" step="0.5">
       </div>
       <div class="hint" id="marginHint">
@@ -214,88 +373,121 @@
       </div>
     </div>
 
+    <!-- live robot position, mirrors the reference tool -->
     <div class="card">
-      <h2>Plan for</h2>
-      <div class="tabs" style="margin-bottom:0">
-        <button id="modeSolo">One robot</button>
-        <button id="modePair" class="on">Two robots</button>
-      </div>
-      <div class="hint" style="margin-top:8px" id="modeHint">
-        Checking both alliance partners' autos against each other.
+      <h2><span class="dot" id="liveDot"></span>Current robot position</h2>
+      <div class="kv" id="liveReadout">
+        <span>X</span><span id="liveX">0.000</span>
+        <span>Y</span><span id="liveY">0.000</span>
+        <span>Heading</span><span id="liveH">0.0&deg;</span>
+        <span>Speed</span><span id="liveV">0.0 in/s</span>
       </div>
     </div>
 
+    <!-- robot -->
     <div class="tabs" id="robotTabs">
-      <button id="tabR1" class="on">Robot 1</button>
-      <button id="tabR2">Robot 2</button>
+      <button class="btn on" id="tabR1">Robot 1</button>
+      <button class="btn" id="tabR2">Robot 2</button>
     </div>
 
     <div class="card">
       <h2><span class="dot" id="robotDot"></span><span id="robotTitle">Robot 1</span></h2>
-      <div class="row tight"><label>Start X</label><input type="number" id="sx" step="1"></div>
-      <div class="row tight"><label>Start Y</label><input type="number" id="sy" step="1"></div>
-      <div class="row tight"><label>Heading&deg;</label><input type="number" id="sh" step="5"></div>
-      <div class="row tight"><label>Length</label><input type="number" id="rlen" step="0.5"></div>
-      <div class="row tight"><label>Width</label><input type="number" id="rwid" step="0.5"></div>
-      <div class="hint">
-        Start pose is in field coordinates. Everything downstream of it &mdash; the
-        whole path &mdash; is stored relative to it, which is the frame the Java
-        library actually uses. Drag the robot to move the plan; drag the ring to spin it.
+      <div class="grid2">
+        <div class="row narrow"><label>Start X</label><input type="number" id="sx" step="1"></div>
+        <div class="row narrow"><label>Start Y</label><input type="number" id="sy" step="1"></div>
+        <div class="row narrow"><label>Heading</label><input type="number" id="sh" step="5"></div>
+        <div class="row narrow"><label>Delay</label><input type="number" id="delay" step="0.1" min="0"></div>
+        <div class="row narrow"><label>Length</label><input type="number" id="rlen" step="0.5"></div>
+        <div class="row narrow"><label>Width</label><input type="number" id="rwid" step="0.5"></div>
+      </div>
+      <div class="hint" style="margin-top:8px">
+        Start pose is in field coordinates. The path itself is stored relative to
+        it &mdash; the frame the Java library actually uses. Drag the robot to move
+        the plan; drag the ring to spin it.
       </div>
     </div>
 
     <div class="card">
       <h2>Motion</h2>
-      <div class="row tight"><label>Max vel</label><input type="number" id="mv" step="1"></div>
-      <div class="row tight"><label>Max accel</label><input type="number" id="ma" step="1"></div>
-      <div class="row tight"><label>Max decel</label><input type="number" id="md" step="1"></div>
-      <div class="row tight"><label>Delay</label><input type="number" id="delay" step="0.1"></div>
-      <div class="hint">
-        Same trapezoidal profile the follower runs, so the timeline reflects when
-        each robot is actually somewhere &mdash; not just where its path goes.
-        Delay is dead time before this robot starts moving.
+      <div class="grid2">
+        <div class="row narrow"><label>Max vel</label><input type="number" id="mv" step="1"></div>
+        <div class="row narrow"><label>Accel</label><input type="number" id="ma" step="1"></div>
+        <div class="row narrow"><label>Decel</label><input type="number" id="md" step="1"></div>
+      </div>
+      <div class="hint" style="margin-top:8px">
+        The same trapezoidal profile the follower runs, so the timeline reflects
+        when each robot is actually somewhere.
       </div>
     </div>
 
+    <!-- selected point, mirrors the reference's Point Position -->
+    <div class="card" id="pointCard">
+      <h2>Point position<span class="spacer"></span><span class="idx" id="pointLabel"></span></h2>
+      <div class="grid2">
+        <div class="row narrow"><label>X</label><input type="number" id="ptx" step="0.5"></div>
+        <div class="row narrow"><label>Y</label><input type="number" id="pty" step="0.5"></div>
+      </div>
+      <div class="hint" id="pointHint" style="margin-top:8px">
+        Click a handle on the field to select it. Coordinates are start-relative.
+      </div>
+    </div>
+
+    <!-- paths -->
     <div class="card">
-      <h2>Segments</h2>
+      <h2>Paths<span class="spacer"></span><span class="idx" id="pathCount"></span></h2>
       <div id="segList"></div>
       <div class="btn-row" style="margin-top:8px">
-        <button id="addLine">+ Line</button>
-        <button id="addCurve">+ Curve</button>
+        <button class="btn" id="addLine">+ Line</button>
+        <button class="btn" id="addCurve">+ Curve</button>
+      </div>
+      <div class="hint" style="margin-top:8px">
+        A <b>wait</b> is a real stop: the chain splits there, so the robot brakes
+        to rest and accelerates again. Expect it to cost noticeably more than the
+        wait itself &mdash; the timeline shows the true figure.
       </div>
     </div>
 
+    <!-- obstacles -->
     <div class="card">
-      <h2>Export</h2>
-      <div class="tabs">
-        <button id="tabJava" class="on">Java</button>
-        <button id="tabJson">JSON</button>
+      <h2>Obstacles<span class="spacer"></span><span class="idx" id="obsCount"></span></h2>
+      <div id="obsList"></div>
+      <div class="btn-row" style="margin-top:8px">
+        <button class="btn" id="addObstacle">+ Add obstacle</button>
       </div>
-      <textarea id="exportBox" readonly spellcheck="false"></textarea>
-      <div class="btn-row" style="margin-top:6px">
-        <button id="copyBtn">Copy</button>
-        <button id="saveBtn" class="primary">Save plan&hellip;</button>
-        <button id="loadBtn">Open plan&hellip;</button>
-        <button id="resetBtn" class="danger">Reset</button>
+      <div class="hint" style="margin-top:8px">
+        Rectangles the robots must not hit &mdash; goals, trusses, a partner's
+        parked bot. Tested with the same exact intersection as robot-on-robot.
       </div>
-      <input type="file" id="fileInput" accept=".json,application/json" hidden>
-      <div class="hint" style="margin-top:6px">
-        Plans save as <code>.json</code>. You can also drop one onto the field.
+    </div>
+
+    <!-- field -->
+    <div class="card">
+      <h2>Field</h2>
+      <div class="btn-row">
+        <button class="btn" id="loadImageBtn">Load field image&hellip;</button>
+        <button class="btn danger" id="clearImageBtn">Clear</button>
+      </div>
+      <div class="row narrow" style="margin-top:9px">
+        <label>Opacity</label>
+        <input type="range" id="imgOpacity" min="0" max="100" value="70">
+      </div>
+      <div class="hint">
+        Drop an official field image on the canvas and it is stretched over the
+        144&Prime; square. No game field is drawn from memory &mdash; a field that is
+        subtly wrong is worse than no field at all.
       </div>
     </div>
 
     <div class="card">
       <h2>Controls</h2>
       <div class="hint">
-        <span class="kbd">drag</span> a handle to move it &middot;
-        <span class="kbd">space</span> play/pause &middot;
-        <span class="kbd">&larr;</span><span class="kbd">&rarr;</span> step one frame &middot;
+        <span class="kbd">drag</span> handle &middot;
+        <span class="kbd">space</span> play &middot;
+        <span class="kbd">&larr;</span><span class="kbd">&rarr;</span> step &middot;
         <span class="kbd">scroll</span> zoom &middot;
-        <span class="kbd">drag background</span> pan &middot;
-        <span class="kbd">&#8984;/ctrl+Z</span> undo &middot;
-        <span class="kbd">&#8984;/ctrl+S</span> save
-        <br>Switch between one- and two-robot planning under <b>Plan for</b>.
+        <span class="kbd">drag bg</span> pan &middot;
+        <span class="kbd">del</span> delete point &middot;
+        <span class="kbd">&#8984;Z</span> undo
       </div>
     </div>
   </aside>
@@ -305,39 +497,40 @@
 "use strict";
 
 /* ==========================================================================
-   Geometry and path math.
+   Path math.
 
-   This mirrors com.verniteyaku.pathing on purpose: the same de Casteljau
-   evaluation, the same 200-sample arc-length table, the same trapezoidal
-   profile. A plan made here is only useful if the robot actually moves the way
-   the tool predicted, and that only holds if both run the same math.
+   Mirrors com.verniteyaku.pathing deliberately: the same de Casteljau
+   evaluation, the same 200-sample arc-length table, the same forward-backward
+   velocity solve. A plan is only useful if the robot moves the way the tool
+   predicted, and that only holds if both run the same math.
    ========================================================================== */
 
 const ARC_SAMPLES = 200;
 const TWO_PI = Math.PI * 2;
+const FIELD = 144;            // FTC field is 12 ft square
+const SCAN_DT = 0.02;         // collision scan step, seconds
 
-function normalizeAngle(a) {
+const normalizeAngle = a => {
   a = a % TWO_PI;
   if (a > Math.PI) a -= TWO_PI;
   else if (a <= -Math.PI) a += TWO_PI;
   return a;
-}
+};
 
-function lerpShortest(start, end, t) {
-  return normalizeAngle(start + normalizeAngle(end - start) * t);
-}
+const lerpShortest = (start, end, t) =>
+  normalizeAngle(start + normalizeAngle(end - start) * t);
 
-function rotate(x, y, a) {
+const rotate = (x, y, a) => {
   const c = Math.cos(a), s = Math.sin(a);
   return { x: x * c - y * s, y: x * s + y * c };
-}
+};
 
-/** A Bezier of arbitrary degree over control points [{x,y}, ...]. */
+const clamp = (v, lo, hi) => v < lo ? lo : (v > hi ? hi : v);
+
 class BezierPath {
   constructor(points) {
     this.points = points;
     this.d1 = BezierPath.derivativePoints(points);
-    this.d2 = BezierPath.derivativePoints(this.d1);
     this.buildArcTable();
   }
 
@@ -376,8 +569,8 @@ class BezierPath {
     this.length = running;
   }
 
-  point(t) { return BezierPath.deCasteljau(this.points, Math.max(0, Math.min(1, t))); }
-  derivative(t) { return BezierPath.deCasteljau(this.d1, Math.max(0, Math.min(1, t))); }
+  point(t) { return BezierPath.deCasteljau(this.points, clamp(t, 0, 1)); }
+  derivative(t) { return BezierPath.deCasteljau(this.d1, clamp(t, 0, 1)); }
 
   tAtArcLength(s) {
     if (s <= 0 || this.length < 1e-9) return 0;
@@ -388,8 +581,7 @@ class BezierPath {
       if (this.cum[mid] <= s) lo = mid; else hi = mid;
     }
     const span = this.cum[hi] - this.cum[lo];
-    const frac = span < 1e-12 ? 0 : (s - this.cum[lo]) / span;
-    return (lo + frac) / ARC_SAMPLES;
+    return (lo + (span < 1e-12 ? 0 : (s - this.cum[lo]) / span)) / ARC_SAMPLES;
   }
 
   tangentAngle(t) {
@@ -402,7 +594,6 @@ class BezierPath {
   }
 }
 
-/** Heading for a segment, matching the library's HeadingInterpolator options. */
 function segmentHeading(seg, path, t) {
   switch (seg.headingMode) {
     case "constant": return normalizeAngle(seg.headingA);
@@ -414,15 +605,9 @@ function segmentHeading(seg, path, t) {
 
 /**
  * Velocity-constrained profile. Mirrors ConstrainedProfile.java: a
- * forward-backward sweep over a velocity ceiling that varies along the path.
- *
- * The forward pass enforces "you cannot speed up faster than the robot can".
- * The backward pass enforces "you must already be braking before the slow bit",
- * which is what stops a per-segment cap from being met by impossible braking at
- * the boundary.
- *
- * This has to stay in step with the Java class of the same name. The timeline is
- * only worth looking at if it predicts what the robot will actually do.
+ * forward-backward sweep over a ceiling that varies along the path. The forward
+ * pass enforces "you cannot speed up faster than the robot can"; the backward
+ * pass enforces "you must already be braking before the slow bit".
  */
 class ConstrainedProfile {
   constructor(distance, limitAt, accel, decel) {
@@ -433,9 +618,7 @@ class ConstrainedProfile {
       return;
     }
 
-    const TARGET_STEP = 0.25;
-    let samples = Math.ceil(this.distance / TARGET_STEP);
-    samples = Math.max(32, Math.min(4000, samples));
+    let samples = clamp(Math.ceil(this.distance / 0.25), 32, 4000);
     this.step = this.distance / samples;
 
     const v = new Float64Array(samples + 1);
@@ -448,7 +631,6 @@ class ConstrainedProfile {
     for (let i = 1; i <= samples; i++) {
       v[i] = Math.min(v[i], Math.sqrt(v[i - 1] * v[i - 1] + 2 * accel * this.step));
     }
-
     v[samples] = 0;
     for (let i = samples - 1; i >= 0; i--) {
       v[i] = Math.min(v[i], Math.sqrt(v[i + 1] * v[i + 1] + 2 * decel * this.step));
@@ -462,17 +644,13 @@ class ConstrainedProfile {
       peak = Math.max(peak, v[i]);
     }
 
-    this.v = v;
-    this.t = t;
-    this.peak = peak;
-    this.duration = t[samples];
+    this.v = v; this.t = t; this.peak = peak; this.duration = t[samples];
   }
 
-  /** Distance covered by time t. */
-  position(time) {
-    if (this.distance < 1e-9) return 0;
-    if (time <= 0) return 0;
-    if (time >= this.duration) return this.distance;
+  sample(time) {
+    if (this.distance < 1e-9) return { s: 0, v: 0 };
+    if (time <= 0) return { s: 0, v: 0 };
+    if (time >= this.duration) return { s: this.distance, v: 0 };
 
     let lo = 0, hi = this.t.length - 1;
     while (hi - lo > 1) {
@@ -482,17 +660,11 @@ class ConstrainedProfile {
     const span = this.t[lo + 1] - this.t[lo];
     const frac = span < 1e-12 ? 0 : (time - this.t[lo]) / span;
     const speed = this.v[lo] + (this.v[lo + 1] - this.v[lo]) * frac;
-    return Math.min(lo * this.step + 0.5 * (this.v[lo] + speed) * (time - this.t[lo]),
-                    this.distance);
-  }
-
-  /** Planned speed at a given arc length, for drawing the speed ribbon. */
-  velocityAt(arcLength) {
-    if (this.distance < 1e-9) return 0;
-    const scaled = Math.max(0, Math.min(this.distance, arcLength)) / this.step;
-    const i = Math.floor(scaled);
-    if (i >= this.v.length - 1) return this.v[this.v.length - 1];
-    return this.v[i] + (this.v[i + 1] - this.v[i]) * (scaled - i);
+    return {
+      s: Math.min(lo * this.step + 0.5 * (this.v[lo] + speed) * (time - this.t[lo]),
+                  this.distance),
+      v: speed
+    };
   }
 }
 
@@ -500,37 +672,30 @@ class ConstrainedProfile {
    Model
    ========================================================================== */
 
-const FIELD = 144;          // FTC field is 12 ft square
-const DEFAULT_DT = 0.02;    // collision scan step, seconds
-
-/**
- * A segment's control points are stored in the robot's START-RELATIVE frame:
- * +x out the robot's front at the moment it starts, +y out its left. That is
- * the frame PathChain and Pose2d use, so what you author here is literally what
- * you paste into Java. Placing the robot on the field is a separate transform,
- * applied only for drawing and for collision testing.
- */
-function makeRobot(name, color, start, chainSeed) {
+function seg(points, headingMode, headingA, headingB, maxVel, waitAfter) {
   return {
-    name, color,
-    start,                       // {x, y, heading} in FIELD coordinates
-    length: 17, width: 17,       // footprint, inches
+    points,
+    headingMode: headingMode || "tangent",
+    headingA: headingA || 0,
+    headingB: headingB || 0,
+    maxVel: (maxVel === undefined || maxVel === null) ? null : maxVel,
+    waitAfter: waitAfter || 0
+  };
+}
+
+function makeRobot(name, color, start, segments) {
+  return {
+    name, color, start,
+    length: 17, width: 17,
     maxVel: 40, maxAccel: 50, maxDecel: 60,
     delay: 0,
-    segments: chainSeed,
+    segments,
     _cache: null
   };
 }
 
-function seg(points, headingMode, headingA, headingB, maxVel) {
-  return {
-    points,
-    headingMode,
-    headingA: headingA || 0,
-    headingB: headingB || 0,
-    // null means "no override" -- use the robot's global limit.
-    maxVel: (maxVel === undefined || maxVel === null) ? null : maxVel
-  };
+function makeObstacle(name, color, x, y, w, h, heading) {
+  return { name, color, x, y, w, h, heading: heading || 0 };
 }
 
 function defaultState() {
@@ -545,156 +710,48 @@ function defaultState() {
         seg([{ x: 40, y: 0 }, { x: 58, y: 0 }, { x: 64, y: -20 }], "tangent")
       ])
     ],
+    obstacles: [],
     margin: 0,
-    // How many robots this plan covers. Robot 2 is kept in memory either way,
-    // so switching to a single-robot plan and back does not lose its path.
     robotCount: 2,
     selected: 0,
     selectedSeg: 0,
+    selectedPoint: null,     // {segment, index}
+    selectedObstacle: null,
     time: 0,
     playing: false,
+    loop: false,
+    speed: 1,
+    showGrid: true,
+    field: { imageDataUrl: null, opacity: 0.7 },
     view: { scale: 3.4, ox: 0, oy: 0, userAdjusted: false },
     exportMode: "java"
   };
 }
 
 let S = defaultState();
+let fieldImage = null;   // decoded Image, kept out of the state snapshot
 
-/** The robots currently being planned. Length 1 or 2. */
-function activeRobots() {
-  return S.robots.slice(0, S.robotCount);
-}
+const activeRobots = () => S.robots.slice(0, S.robotCount);
+const isPaired = () => S.robotCount === 2;
+const selectedRobot = () => S.robots[S.selected];
 
-/** Whether this is a two-robot plan, and therefore has anything to collide. */
-function isPaired() {
-  return S.robotCount === 2;
-}
+/* ==========================================================================
+   Derived geometry and the timeline.
 
-/* --- undo ------------------------------------------------------------------
-   Snapshots are the same JSON the plan exports, so anything that survives a
-   save/load round trip survives an undo. View state (pan, zoom, playhead) is
-   deliberately excluded: scrubbing the timeline is not an edit, and having
-   ctrl-Z jump the camera around would be worse than no undo at all.
-   -------------------------------------------------------------------------- */
-
-const UNDO_LIMIT = 60;
-const undoStack = [];
-const redoStack = [];
-
-function snapshot() {
-  return JSON.stringify({
-    margin: S.margin,
-    robotCount: S.robotCount,
-    robots: activeRobots().map(r => ({
-      name: r.name,
-      start: { ...r.start },
-      length: r.length, width: r.width,
-      maxVel: r.maxVel, maxAccel: r.maxAccel, maxDecel: r.maxDecel,
-      delay: r.delay,
-      segments: r.segments.map(sg => ({
-        points: sg.points.map(pt => ({ ...pt })),
-        headingMode: sg.headingMode,
-        headingA: sg.headingA, headingB: sg.headingB,
-        maxVel: sg.maxVel
-      }))
-    }))
-  });
-}
-
-function restoreSnapshot(json) {
-  const data = JSON.parse(json);
-  S.margin = data.margin;
-  S.robotCount = data.robotCount || 2;
-  S.robots = data.robots.map((r, i) => {
-    const robot = makeRobot(r.name, i === 0 ? "#f2734d" : "#4dc3f2",
-      { ...r.start },
-      r.segments.map(sg => seg(sg.points.map(pt => ({ ...pt })),
-        sg.headingMode, sg.headingA, sg.headingB, sg.maxVel)));
-    robot.length = r.length; robot.width = r.width;
-    robot.maxVel = r.maxVel; robot.maxAccel = r.maxAccel; robot.maxDecel = r.maxDecel;
-    robot.delay = r.delay;
-    return robot;
-  });
-  S.selected = Math.min(S.selected, S.robotCount - 1);
-  S.selectedSeg = Math.min(S.selectedSeg, S.robots[S.selected].segments.length - 1);
-  document.getElementById("margin").value = String(S.margin);
-  applyRobotCount();
-}
-
-function pushUndoSnapshot(state) {
-  if (undoStack.length && undoStack[undoStack.length - 1] === state) {
-    return; // nothing actually changed since the last snapshot
-  }
-  undoStack.push(state);
-  if (undoStack.length > UNDO_LIMIT) undoStack.shift();
-  redoStack.length = 0;
-  updateHistoryButtons();
-}
-
-/** Records the current state as an undo point. Call BEFORE mutating. */
-function pushUndo() {
-  pushUndoSnapshot(snapshot());
-}
-
-/* Numeric fields update live on 'input', so by the time 'change' fires the edit
-   has already happened and snapshotting then would record the *result* -- an
-   undo point identical to the state you wanted to undo. So the snapshot is taken
-   on focus, before typing, and only committed on 'change' if the value actually
-   moved. Tabbing through a field without editing it adds nothing. */
-let editSnapshot = null;
-
-function beginEdit() {
-  editSnapshot = snapshot();
-}
-
-function commitEdit() {
-  if (editSnapshot !== null && editSnapshot !== snapshot()) {
-    pushUndoSnapshot(editSnapshot);
-  }
-  editSnapshot = null;
-}
-
-/** Wires the focus/change undo pair onto a numeric input. */
-function makeUndoable(el) {
-  if (!el) return;
-  el.addEventListener("focus", beginEdit);
-  el.addEventListener("change", commitEdit);
-}
-
-function undo() {
-  if (!undoStack.length) return;
-  redoStack.push(snapshot());
-  restoreSnapshot(undoStack.pop());
-  invalidate(); syncPanel(); render(); updateHistoryButtons();
-}
-
-function redo() {
-  if (!redoStack.length) return;
-  undoStack.push(snapshot());
-  restoreSnapshot(redoStack.pop());
-  invalidate(); syncPanel(); render(); updateHistoryButtons();
-}
-
-function updateHistoryButtons() {
-  const u = document.getElementById("undoBtn");
-  const r = document.getElementById("redoBtn");
-  if (u) u.disabled = undoStack.length === 0;
-  if (r) r.disabled = redoStack.length === 0;
-}
-
-/* --- derived geometry, rebuilt whenever a robot's path changes ------------ */
+   Waits split a chain into runs. A wait means the robot stops, sits, and then
+   accelerates again -- so each run gets its own profile starting and ending at
+   rest, rather than one profile spanning a pause it does not know about.
+   ========================================================================== */
 
 function rebuild(robot) {
   const paths = robot.segments.map(s => new BezierPath(s.points));
-  const total = paths.reduce((a, p) => a + p.length, 0);
   const starts = [];
   let running = 0;
   for (const p of paths) { starts.push(running); running += p.length; }
+  const total = running;
 
-  // The velocity ceiling at a given arc length: the segment's own cap where it
-  // sets one, otherwise the robot's global limit. Never above the global limit.
   const limitAt = s => {
-    let clamped = Math.max(0, Math.min(total, s));
+    const clamped = clamp(s, 0, total);
     for (let i = 0; i < paths.length; i++) {
       if (clamped <= starts[i] + paths[i].length) {
         const cap = robot.segments[i].maxVel;
@@ -705,76 +762,126 @@ function rebuild(robot) {
     return cap == null ? robot.maxVel : Math.min(cap, robot.maxVel);
   };
 
-  robot._cache = {
-    paths, starts, total, limitAt,
-    profile: new ConstrainedProfile(total, limitAt, robot.maxAccel, robot.maxDecel)
-  };
+  // Split into runs at every wait.
+  const runs = [];
+  let runStart = 0;
+  robot.segments.forEach((sg, i) => {
+    const segEnd = starts[i] + paths[i].length;
+    if (sg.waitAfter > 0 || i === robot.segments.length - 1) {
+      runs.push({ from: runStart, to: segEnd, wait: sg.waitAfter || 0 });
+      runStart = segEnd;
+    }
+  });
+
+  // Lay the runs out in time, interleaved with their waits.
+  const phases = [];
+  let clock = 0;
+  for (const run of runs) {
+    const span = run.to - run.from;
+    const profile = new ConstrainedProfile(
+      span, s => limitAt(run.from + s), robot.maxAccel, robot.maxDecel);
+    phases.push({ kind: "move", start: clock, duration: profile.duration,
+                  fromArc: run.from, profile });
+    clock += profile.duration;
+    if (run.wait > 0) {
+      phases.push({ kind: "wait", start: clock, duration: run.wait, arc: run.to });
+      clock += run.wait;
+    }
+  }
+
+  robot._cache = { paths, starts, total, limitAt, phases, duration: clock };
   return robot._cache;
 }
 
-function cacheOf(robot) { return robot._cache || rebuild(robot); }
+const cacheOf = robot => robot._cache || rebuild(robot);
+const robotDuration = robot => robot.delay + cacheOf(robot).duration;
+const totalDuration = () => Math.max(0.001, ...activeRobots().map(robotDuration));
 
-function robotDuration(robot) { return robot.delay + cacheOf(robot).profile.duration; }
-
-function totalDuration() {
-  return Math.max(0.001, ...activeRobots().map(robotDuration));
-}
-
-/** Start-relative pose at arc length s. */
 function localPoseAtArcLength(robot, s) {
   const c = cacheOf(robot);
   if (c.total < 1e-9) return { x: 0, y: 0, heading: 0 };
 
-  const clamped = Math.max(0, Math.min(c.total, s));
+  const clamped = clamp(s, 0, c.total);
   let index = c.paths.length - 1;
   for (let i = 0; i < c.paths.length; i++) {
     if (clamped <= c.starts[i] + c.paths[i].length) { index = i; break; }
   }
-
   const path = c.paths[index];
   const t = path.tAtArcLength(clamped - c.starts[index]);
   const p = path.point(t);
   return { x: p.x, y: p.y, heading: segmentHeading(robot.segments[index], path, t) };
 }
 
-/** Lifts a start-relative pose into field coordinates. */
-function toField(robot, local) {
+const toField = (robot, local) => {
   const r = rotate(local.x, local.y, robot.start.heading);
   return {
     x: robot.start.x + r.x,
     y: robot.start.y + r.y,
     heading: normalizeAngle(robot.start.heading + local.heading)
   };
+};
+
+/** Field pose and speed at time t, honouring the start delay and any waits. */
+function stateAtTime(robot, time) {
+  const c = cacheOf(robot);
+  const t = time - robot.delay;
+
+  let arc = 0, speed = 0;
+  if (t > 0) {
+    let phase = c.phases[c.phases.length - 1];
+    for (const p of c.phases) {
+      if (t < p.start + p.duration) { phase = p; break; }
+    }
+    if (!phase) {
+      arc = c.total;
+    } else if (phase.kind === "wait") {
+      arc = phase.arc;
+    } else {
+      const sampled = phase.profile.sample(t - phase.start);
+      arc = phase.fromArc + sampled.s;
+      speed = sampled.v;
+    }
+    if (t >= c.duration) { arc = c.total; speed = 0; }
+  }
+
+  return { pose: toField(robot, localPoseAtArcLength(robot, arc)), speed, arc };
 }
 
-/** Field pose at time t, accounting for the robot's start delay. */
-function poseAtTime(robot, t) {
+const poseAtTime = (robot, t) => stateAtTime(robot, t).pose;
+
+/** True when the robot is parked in a wait right now. */
+function isWaiting(robot, time) {
   const c = cacheOf(robot);
-  const s = c.profile.position(t - robot.delay);
-  return toField(robot, localPoseAtArcLength(robot, s));
+  const t = time - robot.delay;
+  if (t < 0 || t >= c.duration) return false;
+  return c.phases.some(p => p.kind === "wait" && t >= p.start && t < p.start + p.duration);
 }
 
 /* ==========================================================================
-   Collision: separating axis theorem on two rotated rectangles.
+   Collision: separating axis theorem on rotated rectangles.
 
-   The bounding-circle test this replaces is cheap but wrong in the direction
-   that matters: it inscribes the robot's diagonal, so two robots passing corner
-   to corner read as a collision when they are comfortably clear. SAT is exact
-   for convex shapes, and a robot footprint is a rectangle.
+   The bounding-circle test this replaces inscribes the robot's diagonal, so two
+   robots passing corner to corner read as a collision when they are comfortably
+   clear. SAT is exact for convex shapes, and a footprint is a rectangle.
    ========================================================================== */
 
-/** The four field-frame corners of a robot's footprint at a given pose. */
 function corners(pose, length, width, inflate) {
   const hl = length / 2 + inflate;
   const hw = width / 2 + inflate;
-  const local = [
-    { x: hl, y: hw }, { x: hl, y: -hw }, { x: -hl, y: -hw }, { x: -hl, y: hw }
-  ];
-  return local.map(p => {
-    const r = rotate(p.x, p.y, pose.heading);
-    return { x: pose.x + r.x, y: pose.y + r.y };
-  });
+  return [{ x: hl, y: hw }, { x: hl, y: -hw }, { x: -hl, y: -hw }, { x: -hl, y: hw }]
+    .map(p => {
+      const r = rotate(p.x, p.y, pose.heading);
+      return { x: pose.x + r.x, y: pose.y + r.y };
+    });
 }
+
+/**
+ * An obstacle's field-frame corners. `corners` takes the extent along the
+ * body's own x first, so width (the X extent at heading 0) goes first and depth
+ * second -- matching the labels on the panel.
+ */
+const obstacleCorners = o =>
+  corners({ x: o.x, y: o.y, heading: o.heading }, o.w, o.h, 0);
 
 function projectOnto(pts, axis) {
   let min = Infinity, max = -Infinity;
@@ -787,14 +894,12 @@ function projectOnto(pts, axis) {
 }
 
 /**
- * Returns the overlap depth of two convex polygons: positive when they
- * intersect, and the (negative) separation distance when they do not.
- *
- * A rectangle has only two distinct edge normals, so four axes decide it.
+ * Overlap depth of two convex polygons: positive when they intersect, and the
+ * negative separation when they do not. A rectangle has two distinct edge
+ * normals, so four axes decide it.
  */
 function overlapDepth(a, b) {
   let smallest = Infinity;
-
   for (const poly of [a, b]) {
     for (let i = 0; i < 4; i++) {
       const p1 = poly[i], p2 = poly[(i + 1) % 4];
@@ -802,61 +907,62 @@ function overlapDepth(a, b) {
       const len = Math.hypot(edge.x, edge.y);
       if (len < 1e-12) continue;
       const axis = { x: -edge.y / len, y: edge.x / len };
-
-      const pa = projectOnto(a, axis);
-      const pb = projectOnto(b, axis);
-      // Overlap on this axis; negative means a gap, which by SAT proves the
-      // polygons are disjoint -- so we can stop immediately.
+      const pa = projectOnto(a, axis), pb = projectOnto(b, axis);
       const depth = Math.min(pa.max, pb.max) - Math.max(pa.min, pb.min);
-      if (depth < 0) return depth;
+      if (depth < 0) return depth;      // a gap on any axis proves disjoint
       if (depth < smallest) smallest = depth;
     }
   }
   return smallest;
 }
 
-/** Sweeps the whole timeline and reports the worst moment. */
+/** Sweeps the whole timeline: robot-on-robot and robot-on-obstacle. */
 function scanCollisions() {
   const duration = totalDuration();
+  const inflate = S.margin / 2;
+  const robots = activeRobots();
+  const obstacles = S.obstacles.map(obstacleCorners);
 
-  // A single robot has nothing to collide with. Everything else -- the paths,
-  // the profile, the timeline -- still works; only the pairwise test is skipped.
-  if (!isPaired()) {
-    return {
-      duration, solo: true,
-      firstHit: null, hits: [], minClearance: 0, minClearanceTime: 0
-    };
-  }
-
-  const [a, b] = S.robots;
-  const inflate = S.margin / 2; // half each, so the pair is separated by `margin`
-
+  const pairHits = [];
+  const obstacleHits = [];
   let firstHit = null;
   let minClearance = Infinity;
   let minClearanceTime = 0;
-  const hits = [];
 
-  for (let t = 0; t <= duration + 1e-9; t += DEFAULT_DT) {
-    const pa = poseAtTime(a, t);
-    const pb = poseAtTime(b, t);
-    const depth = overlapDepth(
-      corners(pa, a.length, a.width, inflate),
-      corners(pb, b.length, b.width, inflate));
+  for (let t = 0; t <= duration + 1e-9; t += SCAN_DT) {
+    const boxes = robots.map(r =>
+      corners(poseAtTime(r, t), r.length, r.width, inflate));
 
-    if (depth > 0) {
-      if (firstHit === null) firstHit = t;
-      hits.push(t);
-    } else if (-depth < minClearance) {
-      minClearance = -depth;
-      minClearanceTime = t;
+    if (robots.length === 2) {
+      const depth = overlapDepth(boxes[0], boxes[1]);
+      if (depth > 0) {
+        if (firstHit === null) firstHit = t;
+        pairHits.push(t);
+      } else if (-depth < minClearance) {
+        minClearance = -depth;
+        minClearanceTime = t;
+      }
+    }
+
+    for (let oi = 0; oi < obstacles.length; oi++) {
+      for (let ri = 0; ri < boxes.length; ri++) {
+        if (overlapDepth(boxes[ri], obstacles[oi]) > 0) {
+          if (firstHit === null) firstHit = t;
+          obstacleHits.push({ t, robot: ri, obstacle: oi });
+        }
+      }
     }
   }
 
+  const obstacleTimes = [...new Set(obstacleHits.map(h => h.t))];
   return {
     duration,
+    solo: robots.length < 2,
     firstHit,
-    hits,
-    minClearance: hits.length ? 0 : (minClearance === Infinity ? 0 : minClearance),
+    pairHits,
+    obstacleHits,
+    hits: [...new Set([...pairHits, ...obstacleTimes])].sort((a, b) => a - b),
+    minClearance: pairHits.length ? 0 : (minClearance === Infinity ? 0 : minClearance),
     minClearanceTime
   };
 }
@@ -882,67 +988,104 @@ function fitCanvas(cv, c) {
 }
 
 /** Field inches -> screen pixels. Field +y is up, so screen y is negated. */
-function worldToScreen(x, y, rect) {
-  const v = S.view;
-  return {
-    x: rect.width / 2 + v.ox + x * v.scale,
-    y: rect.height / 2 + v.oy - y * v.scale
-  };
-}
+const worldToScreen = (x, y, rect) => ({
+  x: rect.width / 2 + S.view.ox + x * S.view.scale,
+  y: rect.height / 2 + S.view.oy - y * S.view.scale
+});
 
-function screenToWorld(px, py, rect) {
-  const v = S.view;
-  return {
-    x: (px - rect.width / 2 - v.ox) / v.scale,
-    y: -(py - rect.height / 2 - v.oy) / v.scale
-  };
+const screenToWorld = (px, py, rect) => ({
+  x: (px - rect.width / 2 - S.view.ox) / S.view.scale,
+  y: -(py - rect.height / 2 - S.view.oy) / S.view.scale
+});
+
+function fitView(rect) {
+  if (S.view.userAdjusted) return;
+  S.view.scale = clamp(Math.min(rect.width - 40, rect.height - 40) / FIELD, 0.8, 14);
+  S.view.ox = 0;
+  S.view.oy = 0;
 }
 
 function drawField(rect) {
   const half = FIELD / 2;
   const tl = worldToScreen(-half, half, rect);
   const br = worldToScreen(half, -half, rect);
+  const w = br.x - tl.x, h = br.y - tl.y;
 
-  ctx.fillStyle = "#171a1f";
-  ctx.fillRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
+  ctx.fillStyle = "#191c21";
+  ctx.fillRect(tl.x, tl.y, w, h);
 
-  // 24" tiles, the way the real field is built.
-  ctx.strokeStyle = "#252a32";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (let i = -half; i <= half; i += 24) {
-    const a = worldToScreen(i, half, rect), b = worldToScreen(i, -half, rect);
-    ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
-    const c = worldToScreen(-half, i, rect), d = worldToScreen(half, i, rect);
-    ctx.moveTo(c.x, c.y); ctx.lineTo(d.x, d.y);
+  if (fieldImage) {
+    ctx.save();
+    ctx.globalAlpha = S.field.opacity;
+    ctx.drawImage(fieldImage, tl.x, tl.y, w, h);
+    ctx.restore();
   }
-  ctx.stroke();
 
-  // Axes through the field centre.
-  ctx.strokeStyle = "#39414d";
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  const ox1 = worldToScreen(-half, 0, rect), ox2 = worldToScreen(half, 0, rect);
-  ctx.moveTo(ox1.x, ox1.y); ctx.lineTo(ox2.x, ox2.y);
-  const oy1 = worldToScreen(0, -half, rect), oy2 = worldToScreen(0, half, rect);
-  ctx.moveTo(oy1.x, oy1.y); ctx.lineTo(oy2.x, oy2.y);
-  ctx.stroke();
+  if (S.showGrid) {
+    ctx.strokeStyle = "rgba(255,255,255,.07)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = -half; i <= half; i += 24) {   // 24" tiles, as the field is built
+      const a = worldToScreen(i, half, rect), b = worldToScreen(i, -half, rect);
+      ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+      const c = worldToScreen(-half, i, rect), d = worldToScreen(half, i, rect);
+      ctx.moveTo(c.x, c.y); ctx.lineTo(d.x, d.y);
+    }
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(255,255,255,.16)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    const ox1 = worldToScreen(-half, 0, rect), ox2 = worldToScreen(half, 0, rect);
+    ctx.moveTo(ox1.x, ox1.y); ctx.lineTo(ox2.x, ox2.y);
+    const oy1 = worldToScreen(0, -half, rect), oy2 = worldToScreen(0, half, rect);
+    ctx.moveTo(oy1.x, oy1.y); ctx.lineTo(oy2.x, oy2.y);
+    ctx.stroke();
+  }
 
   ctx.strokeStyle = "#4a5462";
   ctx.lineWidth = 2;
-  ctx.strokeRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
+  ctx.strokeRect(tl.x, tl.y, w, h);
+}
+
+function drawObstacles(rect, hitSet) {
+  S.obstacles.forEach((o, i) => {
+    const pts = obstacleCorners(o).map(p => worldToScreen(p.x, p.y, rect));
+    const hit = hitSet.has(i);
+
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let k = 1; k < 4; k++) ctx.lineTo(pts[k].x, pts[k].y);
+    ctx.closePath();
+
+    ctx.fillStyle = hit ? "rgba(255,93,93,.30)" : o.color + "26";
+    ctx.fill();
+    ctx.strokeStyle = hit ? "#ff5d5d" : o.color;
+    ctx.lineWidth = i === S.selectedObstacle ? 2.5 : 1.5;
+    ctx.setLineDash(i === S.selectedObstacle ? [] : [5, 3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    if (S.view.scale > 1.8) {
+      const c = worldToScreen(o.x, o.y, rect);
+      ctx.fillStyle = hit ? "#ff5d5d" : o.color;
+      ctx.font = "10px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(o.name, c.x, c.y + 3);
+      ctx.textAlign = "left";
+    }
+  });
 }
 
 function drawPath(robot, rect, isSelected) {
   const c = cacheOf(robot);
   if (c.total < 1e-9) return;
 
-  // The path itself, sampled evenly in arc length.
   ctx.strokeStyle = robot.color;
   ctx.lineWidth = isSelected ? 2.5 : 1.6;
-  ctx.globalAlpha = isSelected ? 1 : 0.6;
+  ctx.globalAlpha = isSelected ? 1 : 0.55;
   ctx.beginPath();
-  const steps = 220;
+  const steps = 240;
   for (let i = 0; i <= steps; i++) {
     const p = toField(robot, localPoseAtArcLength(robot, c.total * i / steps));
     const s = worldToScreen(p.x, p.y, rect);
@@ -951,9 +1094,24 @@ function drawPath(robot, rect, isSelected) {
   ctx.stroke();
   ctx.globalAlpha = 1;
 
+  // Wait markers sit where the robot actually stops.
+  c.phases.filter(p => p.kind === "wait").forEach(p => {
+    const f = toField(robot, localPoseAtArcLength(robot, p.arc));
+    const s = worldToScreen(f.x, f.y, rect);
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, 7, 0, TWO_PI);
+    ctx.strokeStyle = "#6ea8fe";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = "#6ea8fe";
+    ctx.font = "9px " + getComputedStyle(document.body).fontFamily;
+    ctx.textAlign = "center";
+    ctx.fillText(p.duration.toFixed(1) + "s", s.x, s.y - 11);
+    ctx.textAlign = "left";
+  });
+
   if (!isSelected) return;
 
-  // Control polygon and handles.
   robot.segments.forEach((sg, si) => {
     const pts = sg.points.map(p => {
       const f = toField(robot, { x: p.x, y: p.y, heading: 0 });
@@ -973,18 +1131,20 @@ function drawPath(robot, rect, isSelected) {
 
     pts.forEach((p, pi) => {
       const isEnd = pi === 0 || pi === pts.length - 1;
+      const chosen = S.selectedPoint
+        && S.selectedPoint.segment === si && S.selectedPoint.index === pi;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, isEnd ? 5.5 : 4.5, 0, TWO_PI);
-      ctx.fillStyle = si === S.selectedSeg ? robot.color : "#8b95a5";
+      ctx.arc(p.x, p.y, chosen ? 6.5 : (isEnd ? 5.5 : 4.5), 0, TWO_PI);
+      ctx.fillStyle = chosen ? "#fff" : (si === S.selectedSeg ? robot.color : "#8b95a5");
       ctx.fill();
-      ctx.strokeStyle = "#0f1114";
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = chosen ? robot.color : "#0f1114";
+      ctx.lineWidth = chosen ? 2.5 : 1.5;
       ctx.stroke();
     });
   });
 }
 
-function drawRobot(rect, robot, pose, colliding) {
+function drawRobot(rect, robot, pose, colliding, waiting) {
   const pts = corners(pose, robot.length, robot.width, 0)
     .map(p => worldToScreen(p.x, p.y, rect));
 
@@ -999,33 +1159,40 @@ function drawRobot(rect, robot, pose, colliding) {
   ctx.lineWidth = colliding ? 2.5 : 1.8;
   ctx.stroke();
 
-  // A nose line, so the heading is readable at a glance.
   const nose = rotate(robot.length / 2, 0, pose.heading);
   const c0 = worldToScreen(pose.x, pose.y, rect);
   const c1 = worldToScreen(pose.x + nose.x, pose.y + nose.y, rect);
   ctx.beginPath();
-  ctx.moveTo(c0.x, c0.y);
-  ctx.lineTo(c1.x, c1.y);
+  ctx.moveTo(c0.x, c0.y); ctx.lineTo(c1.x, c1.y);
   ctx.strokeStyle = colliding ? "#ff5d5d" : robot.color;
   ctx.lineWidth = 2;
   ctx.stroke();
+
+  if (waiting) {
+    ctx.beginPath();
+    ctx.arc(c0.x, c0.y, Math.max(robot.length, robot.width) / 2 * S.view.scale + 6,
+            0, TWO_PI);
+    ctx.strokeStyle = "#6ea8fe";
+    ctx.setLineDash([3, 4]);
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
 }
 
 function drawStartHandle(rect, robot, isSelected) {
+  if (!isSelected) return;
   const s = worldToScreen(robot.start.x, robot.start.y, rect);
   const radius = Math.max(robot.length, robot.width) / 2 * S.view.scale + 10;
 
   ctx.beginPath();
   ctx.arc(s.x, s.y, radius, 0, TWO_PI);
-  ctx.strokeStyle = isSelected ? robot.color + "88" : "transparent";
+  ctx.strokeStyle = robot.color + "88";
   ctx.setLineDash([4, 4]);
   ctx.lineWidth = 1.5;
   ctx.stroke();
   ctx.setLineDash([]);
 
-  if (!isSelected) return;
-
-  // The rotation grip sits on the ring, out along the start heading.
   const grip = {
     x: s.x + Math.cos(-robot.start.heading) * radius,
     y: s.y + Math.sin(-robot.start.heading) * radius
@@ -1039,21 +1206,6 @@ function drawStartHandle(rect, robot, isSelected) {
   ctx.stroke();
 }
 
-/**
- * Sizes the view so the whole field fits, with a little breathing room. Runs on
- * load and on resize, but stops as soon as the user pans or zooms -- silently
- * yanking the view back to a default while someone is working is worse than
- * showing them a slightly awkward starting frame.
- */
-function fitView(rect) {
-  if (S.view.userAdjusted) return;
-  const pad = 24;
-  S.view.scale = Math.max(0.8, Math.min(14,
-    Math.min(rect.width - pad, rect.height - pad) / FIELD));
-  S.view.ox = 0;
-  S.view.oy = 0;
-}
-
 function render() {
   const rect = fitCanvas(canvas, ctx);
   fitView(rect);
@@ -1061,53 +1213,183 @@ function render() {
   drawField(rect);
 
   const robots = activeRobots();
-  robots.forEach((r, i) => drawPath(r, rect, i === S.selected));
-
-  const poses = robots.map(r => poseAtTime(r, S.time));
   const inflate = S.margin / 2;
-  const colliding = isPaired() && overlapDepth(
-    corners(poses[0], robots[0].length, robots[0].width, inflate),
-    corners(poses[1], robots[1].length, robots[1].width, inflate)) > 0;
+  const poses = robots.map(r => poseAtTime(r, S.time));
+  const boxes = robots.map((r, i) => corners(poses[i], r.length, r.width, inflate));
 
+  const pairColliding = robots.length === 2 && overlapDepth(boxes[0], boxes[1]) > 0;
+
+  const obstacleHitNow = new Set();
+  const robotHitNow = new Set();
+  S.obstacles.forEach((o, oi) => {
+    const oc = obstacleCorners(o);
+    boxes.forEach((b, ri) => {
+      if (overlapDepth(b, oc) > 0) { obstacleHitNow.add(oi); robotHitNow.add(ri); }
+    });
+  });
+
+  drawObstacles(rect, obstacleHitNow);
+  robots.forEach((r, i) => drawPath(r, rect, i === S.selected));
   robots.forEach((r, i) => drawStartHandle(rect, r, i === S.selected));
-  robots.forEach((r, i) => drawRobot(rect, r, poses[i], colliding));
+  robots.forEach((r, i) => drawRobot(rect, r, poses[i],
+    pairColliding || robotHitNow.has(i), isWaiting(r, S.time)));
 
   renderTimeline();
+  updateLiveReadout();
 }
 
 function renderTimeline() {
   const rect = fitCanvas(tlCanvas, tlCtx);
   const duration = scan.duration;
   tlCtx.clearRect(0, 0, rect.width, rect.height);
-
-  tlCtx.fillStyle = "#14171d";
+  tlCtx.fillStyle = "#0f1216";
   tlCtx.fillRect(0, 0, rect.width, rect.height);
 
   const xOf = t => (t / duration) * rect.width;
 
-  // Per-robot active spans, so a delayed start is visible.
   activeRobots().forEach((r, i) => {
-    const y = 4 + i * 13;
-    tlCtx.fillStyle = r.color + "55";
-    tlCtx.fillRect(xOf(r.delay), y, xOf(cacheOf(r).profile.duration), 9);
+    const c = cacheOf(r);
+    const y = 4 + i * 11;
+    // Moving spans solid, waits hollow, so a pause is visible at a glance.
+    c.phases.forEach(p => {
+      const x = xOf(r.delay + p.start);
+      const w = Math.max(1, xOf(p.duration));
+      if (p.kind === "move") {
+        tlCtx.fillStyle = r.color + "cc";
+        tlCtx.fillRect(x, y, w, 8);
+      } else {
+        tlCtx.strokeStyle = r.color + "aa";
+        tlCtx.lineWidth = 1;
+        tlCtx.strokeRect(x + .5, y + .5, Math.max(1, w - 1), 7);
+      }
+    });
     tlCtx.fillStyle = r.color;
-    tlCtx.fillRect(xOf(r.delay), y, 2, 9);
+    tlCtx.fillRect(xOf(r.delay), y, 2, 8);
   });
 
-  // Collision windows on top.
   tlCtx.fillStyle = "rgba(255,93,93,.55)";
   for (const t of scan.hits) {
-    tlCtx.fillRect(xOf(t), 0, Math.max(1, xOf(DEFAULT_DT)), rect.height);
+    tlCtx.fillRect(xOf(t), 0, Math.max(1, xOf(SCAN_DT)), rect.height);
   }
 
-  // Playhead.
   const x = xOf(S.time);
-  tlCtx.strokeStyle = "#e6e9ef";
+  tlCtx.strokeStyle = "#e8ebf0";
   tlCtx.lineWidth = 1.5;
   tlCtx.beginPath();
-  tlCtx.moveTo(x, 0);
-  tlCtx.lineTo(x, rect.height);
+  tlCtx.moveTo(x, 0); tlCtx.lineTo(x, rect.height);
   tlCtx.stroke();
+}
+
+function updateLiveReadout() {
+  const robot = selectedRobot();
+  const st = stateAtTime(robot, S.time);
+  document.getElementById("liveX").textContent = st.pose.x.toFixed(3);
+  document.getElementById("liveY").textContent = st.pose.y.toFixed(3);
+  document.getElementById("liveH").textContent =
+    (st.pose.heading * 180 / Math.PI).toFixed(1) + "°";
+  document.getElementById("liveV").textContent =
+    st.speed.toFixed(1) + " in/s" + (isWaiting(robot, S.time) ? " (waiting)" : "");
+  document.getElementById("liveDot").style.background = robot.color;
+
+  const distance = activeRobots().reduce((a, r) => a + cacheOf(r).total, 0);
+  document.getElementById("tbReadout").innerHTML =
+    `<b>${S.time.toFixed(2)}s</b> / ${scan.duration.toFixed(2)}s `
+    + `&middot; <b>${Math.round(distance)}</b> in`;
+}
+
+/* ==========================================================================
+   Undo
+   ========================================================================== */
+
+const UNDO_LIMIT = 60;
+const undoStack = [];
+const redoStack = [];
+
+function snapshot() {
+  return JSON.stringify({
+    margin: S.margin,
+    robotCount: S.robotCount,
+    obstacles: S.obstacles.map(o => ({ ...o })),
+    robots: S.robots.map(r => ({
+      name: r.name, start: { ...r.start },
+      length: r.length, width: r.width,
+      maxVel: r.maxVel, maxAccel: r.maxAccel, maxDecel: r.maxDecel,
+      delay: r.delay,
+      segments: r.segments.map(sg => ({
+        points: sg.points.map(pt => ({ ...pt })),
+        headingMode: sg.headingMode, headingA: sg.headingA, headingB: sg.headingB,
+        maxVel: sg.maxVel, waitAfter: sg.waitAfter
+      }))
+    }))
+  });
+}
+
+function restoreSnapshot(json) {
+  const data = JSON.parse(json);
+  S.margin = data.margin;
+  S.robotCount = data.robotCount || 2;
+  S.obstacles = (data.obstacles || []).map(o => ({ ...o }));
+  S.robots = data.robots.map((r, i) => {
+    const robot = makeRobot(r.name, i === 0 ? "#f2734d" : "#4dc3f2", { ...r.start },
+      r.segments.map(sg => seg(sg.points.map(pt => ({ ...pt })), sg.headingMode,
+        sg.headingA, sg.headingB, sg.maxVel, sg.waitAfter)));
+    Object.assign(robot, {
+      length: r.length, width: r.width, maxVel: r.maxVel,
+      maxAccel: r.maxAccel, maxDecel: r.maxDecel, delay: r.delay
+    });
+    return robot;
+  });
+  S.selected = Math.min(S.selected, S.robotCount - 1);
+  S.selectedSeg = Math.min(S.selectedSeg, S.robots[S.selected].segments.length - 1);
+  S.selectedPoint = null;
+  S.selectedObstacle = null;
+  document.getElementById("margin").value = String(S.margin);
+  applyRobotCount();
+}
+
+function pushUndoSnapshot(state) {
+  if (undoStack.length && undoStack[undoStack.length - 1] === state) return;
+  undoStack.push(state);
+  if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+  redoStack.length = 0;
+  updateHistoryButtons();
+}
+
+const pushUndo = () => pushUndoSnapshot(snapshot());
+
+/* Numeric fields update live on 'input', so snapshotting on 'change' would
+   record the result -- an undo point identical to the state you wanted to
+   undo. Snapshot on focus, commit on change only if the value actually moved. */
+let editSnapshot = null;
+const beginEdit = () => { editSnapshot = snapshot(); };
+const commitEdit = () => {
+  if (editSnapshot !== null && editSnapshot !== snapshot()) pushUndoSnapshot(editSnapshot);
+  editSnapshot = null;
+};
+
+function makeUndoable(el) {
+  if (!el) return;
+  el.addEventListener("focus", beginEdit);
+  el.addEventListener("change", commitEdit);
+}
+
+function undo() {
+  if (!undoStack.length) return;
+  redoStack.push(snapshot());
+  restoreSnapshot(undoStack.pop());
+  invalidate(); syncPanel(); render(); updateHistoryButtons();
+}
+
+function redo() {
+  if (!redoStack.length) return;
+  undoStack.push(snapshot());
+  restoreSnapshot(redoStack.pop());
+  invalidate(); syncPanel(); render(); updateHistoryButtons();
+}
+
+function updateHistoryButtons() {
+  document.getElementById("undoBtn").disabled = undoStack.length === 0;
+  document.getElementById("redoBtn").disabled = redoStack.length === 0;
 }
 
 /* ==========================================================================
@@ -1117,9 +1399,8 @@ function renderTimeline() {
 let drag = null;
 
 function hitTest(px, py, rect) {
-  const robot = S.robots[S.selected];
+  const robot = selectedRobot();
 
-  // Rotation grip first -- it sits on top of everything else.
   const s = worldToScreen(robot.start.x, robot.start.y, rect);
   const radius = Math.max(robot.length, robot.width) / 2 * S.view.scale + 10;
   const grip = {
@@ -1128,7 +1409,7 @@ function hitTest(px, py, rect) {
   };
   if (Math.hypot(px - grip.x, py - grip.y) < 10) return { kind: "rotate" };
 
-  // Control points, later segments first so overlapping joints pick the newer.
+  // Later segments first, so overlapping joints pick the newer one.
   for (let si = robot.segments.length - 1; si >= 0; si--) {
     const sg = robot.segments[si];
     for (let pi = sg.points.length - 1; pi >= 0; pi--) {
@@ -1140,48 +1421,62 @@ function hitTest(px, py, rect) {
     }
   }
 
-  // The robot body itself moves the start pose.
-  if (Math.hypot(px - s.x, py - s.y) < radius) return { kind: "start" };
+  for (let oi = S.obstacles.length - 1; oi >= 0; oi--) {
+    const o = S.obstacles[oi];
+    const c = worldToScreen(o.x, o.y, rect);
+    const w = o.w / 2 * S.view.scale, h = o.h / 2 * S.view.scale;
+    if (Math.abs(px - c.x) < w && Math.abs(py - c.y) < h) {
+      return { kind: "obstacle", index: oi };
+    }
+  }
 
+  if (Math.hypot(px - s.x, py - s.y) < radius) return { kind: "start" };
   return { kind: "pan" };
 }
 
 canvas.addEventListener("pointerdown", e => {
   const rect = canvas.getBoundingClientRect();
   const px = e.clientX - rect.left, py = e.clientY - rect.top;
-
   const hit = hitTest(px, py, rect);
 
-  // Clicking near the other robot selects it instead of panning -- but only
-  // when there is another robot to select.
+  // Clicking near the other robot selects it -- when there is one.
   if (isPaired() && hit.kind === "pan") {
     const other = 1 - S.selected;
     const os = worldToScreen(S.robots[other].start.x, S.robots[other].start.y, rect);
-    const oradius =
+    const orad =
       Math.max(S.robots[other].length, S.robots[other].width) / 2 * S.view.scale + 10;
-    if (Math.hypot(px - os.x, py - os.y) < oradius) {
-      selectRobot(other);
-      return;
-    }
+    if (Math.hypot(px - os.x, py - os.y) < orad) { selectRobot(other); return; }
   }
 
-  // One undo entry per drag gesture, not per pointermove.
-  if (hit.kind === "start" || hit.kind === "rotate" || hit.kind === "point") {
-    pushUndo();
+  if (hit.kind === "start" || hit.kind === "rotate"
+      || hit.kind === "point" || hit.kind === "obstacle") {
+    pushUndo();   // one entry per gesture, not per pointermove
   }
+
   drag = { ...hit, startX: px, startY: py, ox: S.view.ox, oy: S.view.oy };
+
   if (hit.kind === "point") {
     S.selectedSeg = hit.segment;
+    S.selectedPoint = { segment: hit.segment, index: hit.index };
+    S.selectedObstacle = null;
+    syncPanel();
+  } else if (hit.kind === "obstacle") {
+    S.selectedObstacle = hit.index;
+    S.selectedPoint = null;
+    const o = S.obstacles[hit.index];
+    drag.grabX = o.x; drag.grabY = o.y;
     syncPanel();
   }
+
   canvas.setPointerCapture(e.pointerId);
+  render();
 });
 
 canvas.addEventListener("pointermove", e => {
   if (!drag) return;
   const rect = canvas.getBoundingClientRect();
   const px = e.clientX - rect.left, py = e.clientY - rect.top;
-  const robot = S.robots[S.selected];
+  const robot = selectedRobot();
 
   if (drag.kind === "pan") {
     S.view.userAdjusted = true;
@@ -1206,7 +1501,15 @@ canvas.addEventListener("pointermove", e => {
     movePoint(robot, drag.segment, drag.index,
       Math.round(rel.x * 10) / 10, Math.round(rel.y * 10) / 10);
     invalidate();
+
+  } else if (drag.kind === "obstacle") {
+    const w = screenToWorld(px, py, rect);
+    const o = S.obstacles[drag.index];
+    o.x = Math.round(w.x * 10) / 10;
+    o.y = Math.round(w.y * 10) / 10;
+    invalidate();
   }
+
   render();
 });
 
@@ -1224,7 +1527,6 @@ canvas.addEventListener("pointerup", e => {
 function movePoint(robot, segIndex, ptIndex, x, y) {
   const sg = robot.segments[segIndex];
   sg.points[ptIndex] = { x, y };
-
   if (ptIndex === 0 && segIndex > 0) {
     const prev = robot.segments[segIndex - 1];
     prev.points[prev.points.length - 1] = { x, y };
@@ -1236,58 +1538,52 @@ function movePoint(robot, segIndex, ptIndex, x, y) {
 
 canvas.addEventListener("wheel", e => {
   e.preventDefault();
-  const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
   S.view.userAdjusted = true;
-  S.view.scale = Math.max(0.8, Math.min(14, S.view.scale * factor));
+  S.view.scale = clamp(S.view.scale * (e.deltaY < 0 ? 1.1 : 1 / 1.1), 0.8, 14);
   render();
 }, { passive: false });
 
-/* --- timeline scrubbing --------------------------------------------------- */
+/* ==========================================================================
+   Playback
+   ========================================================================== */
 
 const scrub = document.getElementById("scrub");
-scrub.addEventListener("input", () => {
-  S.playing = false;
-  document.getElementById("playBtn").textContent = "Play";
-  S.time = (scrub.value / 1000) * scan.duration;
-  render();
-  updateTimeLabel();
-});
+const playIcon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+const pauseIcon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>';
 
-tlCanvas.addEventListener("pointerdown", e => {
-  const rect = tlCanvas.getBoundingClientRect();
-  S.time = ((e.clientX - rect.left) / rect.width) * scan.duration;
-  S.playing = false;
-  document.getElementById("playBtn").textContent = "Play";
-  syncScrub();
-  render();
-});
+function setPlaying(on) {
+  S.playing = on;
+  document.getElementById("playBtn").innerHTML = on ? pauseIcon : playIcon;
+}
+
+function togglePlay() {
+  if (!S.playing && S.time >= scan.duration - 1e-6) S.time = 0;
+  setPlaying(!S.playing);
+}
 
 document.getElementById("playBtn").addEventListener("click", togglePlay);
 document.getElementById("rewindBtn").addEventListener("click", () => {
   S.time = 0; syncScrub(); render();
 });
+document.getElementById("loopBtn").addEventListener("click", () => {
+  S.loop = !S.loop;
+  document.getElementById("loopBtn").classList.toggle("on", S.loop);
+});
+document.getElementById("speedSel").addEventListener("change", e => {
+  S.speed = parseFloat(e.target.value) || 1;
+});
 
-function togglePlay() {
-  S.playing = !S.playing;
-  if (S.playing && S.time >= scan.duration - 1e-6) S.time = 0;
-  document.getElementById("playBtn").textContent = S.playing ? "Pause" : "Play";
-}
+scrub.addEventListener("input", () => {
+  setPlaying(false);
+  S.time = (scrub.value / 1000) * scan.duration;
+  render(); updateTimeLabel();
+});
 
-window.addEventListener("keydown", e => {
-  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
-  if (e.code === "Space") { e.preventDefault(); togglePlay(); }
-  if (e.code === "ArrowRight") { S.time = Math.min(scan.duration, S.time + DEFAULT_DT); syncScrub(); render(); }
-  if (e.code === "ArrowLeft") { S.time = Math.max(0, S.time - DEFAULT_DT); syncScrub(); render(); }
-
-  const mod = e.metaKey || e.ctrlKey;
-  if (mod && e.key.toLowerCase() === "z") {
-    e.preventDefault();
-    if (e.shiftKey) redo(); else undo();
-  }
-  if (mod && e.key.toLowerCase() === "s") {
-    e.preventDefault();
-    document.getElementById("saveBtn").click();
-  }
+tlCanvas.addEventListener("pointerdown", e => {
+  const rect = tlCanvas.getBoundingClientRect();
+  S.time = clamp(((e.clientX - rect.left) / rect.width) * scan.duration, 0, scan.duration);
+  setPlaying(false);
+  syncScrub(); render();
 });
 
 let lastFrame = performance.now();
@@ -1295,11 +1591,11 @@ function tick(now) {
   const dt = Math.min(0.05, (now - lastFrame) / 1000);
   lastFrame = now;
   if (S.playing) {
-    S.time += dt;
-    if (S.time >= scan.duration) { S.time = scan.duration; S.playing = false;
-      document.getElementById("playBtn").textContent = "Play"; }
-    syncScrub();
-    render();
+    S.time += dt * S.speed;
+    if (S.time >= scan.duration) {
+      if (S.loop) { S.time = 0; } else { S.time = scan.duration; setPlaying(false); }
+    }
+    syncScrub(); render();
   }
   requestAnimationFrame(tick);
 }
@@ -1310,10 +1606,10 @@ function syncScrub() {
   updateTimeLabel();
 }
 
-function updateTimeLabel() {
+const updateTimeLabel = () => {
   document.getElementById("timeLabel").textContent =
-    `${S.time.toFixed(2)} s / ${scan.duration.toFixed(2)} s`;
-}
+    `${S.time.toFixed(2)} / ${scan.duration.toFixed(2)} s`;
+};
 
 /* ==========================================================================
    Panel
@@ -1324,40 +1620,47 @@ function invalidate() {
   scan = scanCollisions();
   if (S.time > scan.duration) S.time = scan.duration;
   updateVerdict();
-  updateExport();
   syncScrub();
 }
 
 function updateVerdict() {
   const el = document.getElementById("verdict");
+  const obstacleCount = new Set(scan.obstacleHits.map(h => h.obstacle)).size;
 
-  if (scan.solo) {
-    el.className = "verdict";
-    el.innerHTML = `Single-robot plan &mdash; no collision check. `
-      + `Run takes <b>${scan.duration.toFixed(2)} s</b>.`;
+  if (scan.firstHit === null) {
+    el.className = "verdict clear";
+    el.innerHTML = scan.solo && !S.obstacles.length
+      ? `Single-robot plan, no obstacles &mdash; nothing to hit. `
+        + `Run takes <b>${scan.duration.toFixed(2)} s</b>.`
+      : `Clear.` + (scan.solo ? "" :
+          ` Closest approach <b>${scan.minClearance.toFixed(2)}"</b> `
+          + `at <b>${scan.minClearanceTime.toFixed(2)} s</b>.`)
+        + (S.obstacles.length ? ` No obstacle contact.` : ``);
     return;
   }
 
-  if (scan.firstHit !== null) {
-    const last = scan.hits[scan.hits.length - 1];
-    el.className = "verdict hit";
-    el.innerHTML = `Collision from <b>${scan.firstHit.toFixed(2)} s</b> to ` +
-      `<b>${last.toFixed(2)} s</b> &mdash; ${scan.hits.length} sampled frames overlap.`;
-  } else {
-    el.className = "verdict clear";
-    el.innerHTML = `Clear. Closest approach <b>${scan.minClearance.toFixed(2)}"</b> ` +
-      `at <b>${scan.minClearanceTime.toFixed(2)} s</b>.`;
+  el.className = "verdict hit";
+  const parts = [];
+  if (scan.pairHits.length) {
+    const last = scan.pairHits[scan.pairHits.length - 1];
+    parts.push(`Robots overlap from <b>${scan.pairHits[0].toFixed(2)} s</b> `
+      + `to <b>${last.toFixed(2)} s</b>.`);
   }
+  if (obstacleCount) {
+    const names = [...new Set(scan.obstacleHits.map(h => S.obstacles[h.obstacle].name))];
+    parts.push(`Hits ${names.map(n => `<b>${n}</b>`).join(", ")} `
+      + `from <b>${scan.obstacleHits[0].t.toFixed(2)} s</b>.`);
+  }
+  el.innerHTML = parts.join("<br>");
 }
 
 function selectRobot(i) {
   S.selected = Math.min(i, S.robotCount - 1);
-  i = S.selected;
-  S.selectedSeg = Math.min(S.selectedSeg, S.robots[i].segments.length - 1);
-  document.getElementById("tabR1").classList.toggle("on", i === 0);
-  document.getElementById("tabR2").classList.toggle("on", i === 1);
-  syncPanel();
-  render();
+  S.selectedSeg = Math.min(S.selectedSeg, S.robots[S.selected].segments.length - 1);
+  S.selectedPoint = null;
+  document.getElementById("tabR1").classList.toggle("on", S.selected === 0);
+  document.getElementById("tabR2").classList.toggle("on", S.selected === 1);
+  syncPanel(); render();
 }
 
 document.getElementById("tabR1").addEventListener("click", () => selectRobot(0));
@@ -1367,8 +1670,6 @@ function setRobotCount(count) {
   if (S.robotCount === count) return;
   pushUndo();
   S.robotCount = count;
-  // Robot 2 stays in memory while hidden, so toggling back restores its path
-  // rather than making you draw it again.
   if (S.selected >= count) S.selected = 0;
   applyRobotCount();
   invalidate();
@@ -1384,12 +1685,6 @@ function applyRobotCount() {
   document.getElementById("robotTabs").style.display = paired ? "" : "none";
   document.getElementById("marginRow").style.display = paired ? "" : "none";
   document.getElementById("marginHint").style.display = paired ? "" : "none";
-  document.getElementById("modeHint").textContent = paired
-    ? "Checking both alliance partners' autos against each other."
-    : "Planning one robot's auto. No collision checking.";
-  document.getElementById("headerSub").innerHTML = paired
-    ? "Two-robot path collision checking &middot; field inches, headings CCW"
-    : "Single-robot auto planning &middot; field inches, headings CCW";
 }
 
 document.getElementById("modeSolo").addEventListener("click", () => setRobotCount(1));
@@ -1416,13 +1711,13 @@ const setters = {
 };
 
 for (const id of Object.keys(fields)) {
-  makeUndoable(document.getElementById(id));
-  document.getElementById(id).addEventListener("input", e => {
+  const el = document.getElementById(id);
+  makeUndoable(el);
+  el.addEventListener("input", e => {
     const v = parseFloat(e.target.value);
     if (!Number.isFinite(v)) return;
-    setters[id](S.robots[S.selected], v);
-    invalidate();
-    render();
+    setters[id](selectedRobot(), v);
+    invalidate(); render();
   });
 }
 
@@ -1430,69 +1725,117 @@ makeUndoable(document.getElementById("margin"));
 document.getElementById("margin").addEventListener("input", e => {
   const v = parseFloat(e.target.value);
   S.margin = Number.isFinite(v) ? Math.max(0, v) : 0;
-  invalidate();
-  render();
+  invalidate(); render();
+});
+
+// Selected point X/Y, mirroring the reference tool's Point Position.
+["ptx", "pty"].forEach(id => {
+  const el = document.getElementById(id);
+  makeUndoable(el);
+  el.addEventListener("input", e => {
+    if (!S.selectedPoint) return;
+    const v = parseFloat(e.target.value);
+    if (!Number.isFinite(v)) return;
+    const robot = selectedRobot();
+    const pt = robot.segments[S.selectedPoint.segment].points[S.selectedPoint.index];
+    movePoint(robot, S.selectedPoint.segment, S.selectedPoint.index,
+      id === "ptx" ? v : pt.x, id === "pty" ? v : pt.y);
+    invalidate(); render();
+  });
 });
 
 function syncPanel() {
-  const r = S.robots[S.selected];
+  const r = selectedRobot();
   for (const id of Object.keys(fields)) {
     const el = document.getElementById(id);
     if (document.activeElement !== el) el.value = String(fields[id](r));
   }
   document.getElementById("robotTitle").textContent = r.name;
   document.getElementById("robotDot").style.background = r.color;
+
+  const ptx = document.getElementById("ptx");
+  const pty = document.getElementById("pty");
+  if (S.selectedPoint) {
+    const pt = r.segments[S.selectedPoint.segment].points[S.selectedPoint.index];
+    if (document.activeElement !== ptx) ptx.value = String(pt.x);
+    if (document.activeElement !== pty) pty.value = String(pt.y);
+    ptx.disabled = pty.disabled = false;
+    document.getElementById("pointLabel").textContent =
+      `path ${S.selectedPoint.segment} · point ${S.selectedPoint.index}`;
+    document.getElementById("pointHint").textContent =
+      "Start-relative inches. Shared joints move both segments together.";
+  } else {
+    ptx.value = pty.value = "";
+    ptx.disabled = pty.disabled = true;
+    document.getElementById("pointLabel").textContent = "none selected";
+    document.getElementById("pointHint").textContent =
+      "Click a handle on the field to select it. Coordinates are start-relative.";
+  }
+
+  document.getElementById("pathCount").textContent =
+    `${r.segments.length} · ${cacheOf(r).total.toFixed(1)}"`;
+  document.getElementById("obsCount").textContent = String(S.obstacles.length);
+
   renderSegments();
-  updateExport();
+  renderObstacles();
+  updateLiveReadout();
 }
 
 function renderSegments() {
-  const r = S.robots[S.selected];
+  const r = selectedRobot();
   const host = document.getElementById("segList");
   host.innerHTML = "";
 
   r.segments.forEach((sg, i) => {
     const div = document.createElement("div");
-    div.className = "seg" + (i === S.selectedSeg ? " sel" : "");
-
-    const kind = sg.points.length === 2 ? "Line" : `Bezier &deg;${sg.points.length - 1}`;
+    div.className = "item" + (i === S.selectedSeg ? " sel" : "");
+    const kind = sg.points.length === 2 ? "Line" : `Bezier °${sg.points.length - 1}`;
     const path = cacheOf(r).paths[i];
 
     div.innerHTML = `
-      <div class="seg-head">
+      <div class="item-head">
         <span class="idx">${i}</span>
         <span>${kind}</span>
         <span class="idx">${path.length.toFixed(1)}"</span>
-        ${sg.maxVel != null ? `<span class="cap-tag">&le;${sg.maxVel}</span>` : ""}
+        ${sg.maxVel != null ? `<span class="tag cap">≤${sg.maxVel}</span>` : ""}
+        ${sg.waitAfter > 0 ? `<span class="tag wait">wait ${sg.waitAfter}s</span>` : ""}
         <span class="spacer"></span>
-        <button data-act="ctrl" data-i="${i}" title="Add a control point">+pt</button>
-        <button data-act="del" data-i="${i}" class="danger" title="Delete segment">&times;</button>
+        <button class="mini" data-act="ctrl" data-i="${i}" title="Add a control point">+pt</button>
+        <button class="mini danger" data-act="del" data-i="${i}" title="Delete">&times;</button>
       </div>
-      <div class="row tight">
-        <label>Heading</label>
-        <select data-act="mode" data-i="${i}">
-          <option value="tangent">Tangent</option>
-          <option value="reverseTangent">Reverse tangent</option>
-          <option value="constant">Constant</option>
-          <option value="linear">Linear</option>
-        </select>
-      </div>
-      <div class="row tight" data-role="ha" style="display:none">
-        <label>From&deg;</label>
-        <input type="number" step="5" data-act="ha" data-i="${i}">
-      </div>
-      <div class="row tight" data-role="hb" style="display:none">
-        <label>To&deg;</label>
-        <input type="number" step="5" data-act="hb" data-i="${i}">
-      </div>
-      <div class="row tight">
-        <label title="Blank uses the robot's global max velocity">Max vel</label>
-        <input type="number" step="1" min="0" placeholder="global"
-               data-act="cap" data-i="${i}">
+      <div class="grid2">
+        <div class="row narrow">
+          <label>Heading</label>
+          <select data-act="mode" data-i="${i}">
+            <option value="tangent">Tangential</option>
+            <option value="reverseTangent">Reversed</option>
+            <option value="constant">Constant</option>
+            <option value="linear">Linear</option>
+          </select>
+        </div>
+        <div class="row narrow" data-role="ha" style="display:none">
+          <label>Start</label>
+          <input type="number" step="5" data-act="ha" data-i="${i}">
+        </div>
+        <div class="row narrow" data-role="hb" style="display:none">
+          <label>End</label>
+          <input type="number" step="5" data-act="hb" data-i="${i}">
+        </div>
+        <div class="row narrow">
+          <label title="Blank uses the robot's global max velocity">Max vel</label>
+          <input type="number" step="1" min="0" placeholder="global"
+                 data-act="cap" data-i="${i}">
+        </div>
+        <div class="row narrow">
+          <label title="Seconds parked here before the next path">Wait</label>
+          <input type="number" step="0.1" min="0" placeholder="0"
+                 data-act="wait" data-i="${i}">
+        </div>
       </div>`;
 
     div.querySelector("select").value = sg.headingMode;
     div.querySelector('[data-act="cap"]').value = sg.maxVel == null ? "" : String(sg.maxVel);
+    div.querySelector('[data-act="wait"]').value = sg.waitAfter ? String(sg.waitAfter) : "";
 
     const rowA = div.querySelector('[data-role="ha"]');
     const rowB = div.querySelector('[data-role="hb"]');
@@ -1501,7 +1844,7 @@ function renderSegments() {
       rowA.querySelector("input").value =
         String(Math.round(sg.headingA * 180 / Math.PI * 10) / 10);
       rowA.querySelector("label").textContent =
-        sg.headingMode === "constant" ? "Angle°" : "From°";
+        sg.headingMode === "constant" ? "Angle" : "Start";
     }
     if (sg.headingMode === "linear") {
       rowB.style.display = "flex";
@@ -1510,7 +1853,10 @@ function renderSegments() {
     }
 
     div.addEventListener("click", e => {
-      if (e.target.tagName !== "BUTTON") { S.selectedSeg = i; syncPanel(); render(); }
+      if (e.target.tagName !== "BUTTON" && e.target.tagName !== "SELECT"
+          && e.target.tagName !== "INPUT") {
+        S.selectedSeg = i; syncPanel(); render();
+      }
     });
     host.appendChild(div);
   });
@@ -1518,68 +1864,65 @@ function renderSegments() {
   host.querySelectorAll("[data-act]").forEach(el => {
     const act = el.dataset.act;
     const i = parseInt(el.dataset.i, 10);
-    const ev = el.tagName === "BUTTON" ? "click" : "input";
-    if (el.tagName === "INPUT") {
-      makeUndoable(el);
-    }
-    el.addEventListener(ev, e => {
-      e.stopPropagation();
-      const rb = S.robots[S.selected];
-      const sg = rb.segments[i];
+    if (el.tagName === "INPUT") makeUndoable(el);
 
-      if (act === "del" || act === "ctrl" || act === "mode") pushUndo();
+    el.addEventListener(el.tagName === "BUTTON" ? "click" : "input", e => {
+      e.stopPropagation();
+      const rb = selectedRobot();
+      const sg = rb.segments[i];
+      const structural = act === "del" || act === "ctrl" || act === "mode";
+      if (structural) pushUndo();
 
       if (act === "del") {
         if (rb.segments.length <= 1) return;
         rb.segments.splice(i, 1);
-        // Re-join the seam the deletion opened up.
+        // Re-weld the seam the deletion opened up.
         for (let k = 1; k < rb.segments.length; k++) {
           const prev = rb.segments[k - 1];
           rb.segments[k].points[0] = { ...prev.points[prev.points.length - 1] };
         }
         S.selectedSeg = Math.min(S.selectedSeg, rb.segments.length - 1);
+        S.selectedPoint = null;
       } else if (act === "ctrl") {
-        // Insert a control point midway along the current control polygon.
         const pts = sg.points;
         const a = pts[pts.length - 2], b = pts[pts.length - 1];
         pts.splice(pts.length - 1, 0, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
       } else if (act === "mode") {
         sg.headingMode = el.value;
-        // Seed the angles from the current tangent, so switching modes does not
-        // snap the robot to an unrelated heading.
-        const path = cacheOf(rb).paths[i];
+        // Seed from the current tangent so switching modes does not snap the
+        // robot to an unrelated heading.
         if (sg.headingA === 0 && sg.headingB === 0) {
+          const path = cacheOf(rb).paths[i];
           sg.headingA = path.tangentAngle(0);
           sg.headingB = path.tangentAngle(1);
         }
       } else if (act === "ha") {
-        sg.headingA = parseFloat(el.value) * Math.PI / 180 || 0;
+        sg.headingA = (parseFloat(el.value) || 0) * Math.PI / 180;
       } else if (act === "hb") {
-        sg.headingB = parseFloat(el.value) * Math.PI / 180 || 0;
+        sg.headingB = (parseFloat(el.value) || 0) * Math.PI / 180;
       } else if (act === "cap") {
-        // Blank means "no override": fall back to the robot's global limit.
-        const raw = el.value.trim();
-        const parsed = parseFloat(raw);
-        sg.maxVel = (raw === "" || !Number.isFinite(parsed) || parsed <= 0)
-          ? null : parsed;
+        const raw = el.value.trim(), parsed = parseFloat(raw);
+        sg.maxVel = (raw === "" || !Number.isFinite(parsed) || parsed <= 0) ? null : parsed;
+      } else if (act === "wait") {
+        const parsed = parseFloat(el.value);
+        sg.waitAfter = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
       }
 
       invalidate();
-      if (act !== "ha" && act !== "hb" && act !== "cap") syncPanel();
+      if (structural || act === "wait" || act === "cap") syncPanel();
       render();
     });
   });
 }
 
-function lastPoint(robot) {
+const lastPoint = robot => {
   const sg = robot.segments[robot.segments.length - 1];
   return sg.points[sg.points.length - 1];
-}
+};
 
 document.getElementById("addLine").addEventListener("click", () => {
   pushUndo();
-  const r = S.robots[S.selected];
-  const p = lastPoint(r);
+  const r = selectedRobot(), p = lastPoint(r);
   r.segments.push(seg([{ ...p }, { x: p.x + 18, y: p.y }], "tangent"));
   S.selectedSeg = r.segments.length - 1;
   invalidate(); syncPanel(); render();
@@ -1587,20 +1930,162 @@ document.getElementById("addLine").addEventListener("click", () => {
 
 document.getElementById("addCurve").addEventListener("click", () => {
   pushUndo();
-  const r = S.robots[S.selected];
-  const p = lastPoint(r);
-  r.segments.push(seg(
-    [{ ...p }, { x: p.x + 14, y: p.y }, { x: p.x + 20, y: p.y + 16 }], "tangent"));
+  const r = selectedRobot(), p = lastPoint(r);
+  r.segments.push(seg([{ ...p }, { x: p.x + 14, y: p.y },
+                       { x: p.x + 20, y: p.y + 16 }], "tangent"));
   S.selectedSeg = r.segments.length - 1;
   invalidate(); syncPanel(); render();
 });
 
+/* ---------- obstacles ---------- */
+
+function renderObstacles() {
+  const host = document.getElementById("obsList");
+  host.innerHTML = "";
+
+  if (!S.obstacles.length) {
+    host.innerHTML = `<div class="hint">None. Add goals, trusses, or a partner's
+      parked robot to check the paths against them.</div>`;
+    return;
+  }
+
+  S.obstacles.forEach((o, i) => {
+    const div = document.createElement("div");
+    div.className = "item" + (i === S.selectedObstacle ? " sel" : "");
+    div.innerHTML = `
+      <div class="item-head">
+        <span class="idx">${i}</span>
+        <input type="text" data-act="oname" data-i="${i}" value="${o.name}"
+               style="flex:1;padding:3px 6px">
+        <input type="color" data-act="ocolor" data-i="${i}" value="${o.color}">
+        <button class="mini danger" data-act="odel" data-i="${i}">&times;</button>
+      </div>
+      <div class="grid2">
+        <div class="row narrow"><label>X</label>
+          <input type="number" step="1" data-act="ox" data-i="${i}" value="${o.x}"></div>
+        <div class="row narrow"><label>Y</label>
+          <input type="number" step="1" data-act="oy" data-i="${i}" value="${o.y}"></div>
+        <div class="row narrow"><label>Width</label>
+          <input type="number" step="1" min="1" data-act="ow" data-i="${i}" value="${o.w}"></div>
+        <div class="row narrow"><label>Depth</label>
+          <input type="number" step="1" min="1" data-act="oh" data-i="${i}" value="${o.h}"></div>
+        <div class="row narrow"><label>Angle</label>
+          <input type="number" step="5" data-act="oa" data-i="${i}"
+                 value="${Math.round(o.heading * 180 / Math.PI)}"></div>
+      </div>`;
+
+    div.addEventListener("click", e => {
+      if (e.target.tagName !== "BUTTON" && e.target.tagName !== "INPUT") {
+        S.selectedObstacle = i; S.selectedPoint = null; syncPanel(); render();
+      }
+    });
+    host.appendChild(div);
+  });
+
+  host.querySelectorAll("[data-act]").forEach(el => {
+    const act = el.dataset.act;
+    const i = parseInt(el.dataset.i, 10);
+    if (el.tagName === "INPUT" && el.type !== "color") makeUndoable(el);
+
+    el.addEventListener(el.tagName === "BUTTON" ? "click" : "input", e => {
+      e.stopPropagation();
+      if (act === "odel") {
+        pushUndo();
+        S.obstacles.splice(i, 1);
+        S.selectedObstacle = null;
+        invalidate(); syncPanel(); render();
+        return;
+      }
+      const o = S.obstacles[i];
+      const v = parseFloat(el.value);
+      if (act === "oname") o.name = el.value;
+      else if (act === "ocolor") o.color = el.value;
+      else if (act === "ox" && Number.isFinite(v)) o.x = v;
+      else if (act === "oy" && Number.isFinite(v)) o.y = v;
+      else if (act === "ow" && Number.isFinite(v)) o.w = Math.max(1, v);
+      else if (act === "oh" && Number.isFinite(v)) o.h = Math.max(1, v);
+      else if (act === "oa" && Number.isFinite(v)) o.heading = v * Math.PI / 180;
+      invalidate(); render();
+    });
+  });
+}
+
+document.getElementById("addObstacle").addEventListener("click", () => {
+  pushUndo();
+  const palette = ["#e05252", "#5271e0", "#e0b452", "#52e08a", "#b452e0"];
+  S.obstacles.push(makeObstacle(
+    "Obstacle " + (S.obstacles.length + 1),
+    palette[S.obstacles.length % palette.length],
+    0, 0, 24, 24, 0));
+  S.selectedObstacle = S.obstacles.length - 1;
+  invalidate(); syncPanel(); render();
+});
+
+/* ---------- field image ---------- */
+
+function setFieldImage(dataUrl) {
+  if (!dataUrl) {
+    fieldImage = null;
+    S.field.imageDataUrl = null;
+    render();
+    return;
+  }
+  const img = new Image();
+  img.onload = () => { fieldImage = img; render(); };
+  img.onerror = () => alert("That image could not be decoded.");
+  img.src = dataUrl;
+  S.field.imageDataUrl = dataUrl;
+}
+
+document.getElementById("loadImageBtn").addEventListener("click", () =>
+  document.getElementById("imageInput").click());
+
+document.getElementById("imageInput").addEventListener("change", e => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => setFieldImage(reader.result);
+  reader.readAsDataURL(file);
+  e.target.value = "";
+});
+
+document.getElementById("clearImageBtn").addEventListener("click", () => setFieldImage(null));
+
+document.getElementById("imgOpacity").addEventListener("input", e => {
+  S.field.opacity = (parseFloat(e.target.value) || 0) / 100;
+  render();
+});
+
+/* ---------- toolbar ---------- */
+
+document.getElementById("undoBtn").addEventListener("click", undo);
+document.getElementById("redoBtn").addEventListener("click", redo);
+
+document.getElementById("gridBtn").addEventListener("click", e => {
+  S.showGrid = !S.showGrid;
+  e.currentTarget.classList.toggle("on", S.showGrid);
+  render();
+});
+
+document.getElementById("fitBtn").addEventListener("click", () => {
+  S.view.userAdjusted = false;
+  render();
+});
+
+const exportMenu = document.getElementById("exportMenu");
+document.getElementById("exportBtn").addEventListener("click", e => {
+  e.stopPropagation();
+  exportMenu.hidden = !exportMenu.hidden;
+});
+document.addEventListener("click", () => { exportMenu.hidden = true; });
+exportMenu.addEventListener("click", e => e.stopPropagation());
+
 /* ==========================================================================
    Export
 
-   Java comes out in the robot's start-relative frame, because that is the frame
-   PathChain lives in. The start pose is emitted as a comment rather than as
-   code: the library has no concept of where the field is, and pretending
+   Java comes out in each robot's start-relative frame, because that is the
+   frame PathChain lives in. The start pose is emitted as a comment rather than
+   as code: the library has no concept of where the field is, and pretending
    otherwise in generated code would be a lie you would then have to debug.
    ========================================================================== */
 
@@ -1615,15 +2100,17 @@ function toJava(robot, varName) {
   lines.push(`// Profile: ${robot.maxVel} in/s, ${robot.maxAccel} in/s^2 accel, `
     + `${robot.maxDecel} in/s^2 decel`
     + (robot.delay > 0 ? `, after a ${robot.delay}s delay` : "") + ".");
+
+  const waits = robot.segments.filter(s => s.waitAfter > 0);
+  if (waits.length) {
+    lines.push(`// Waits are NOT part of the PathChain -- sequence them yourself,`);
+    lines.push(`// e.g. Commands.waitSeconds(t, clock) between FollowPathCommands.`);
+  }
+
   lines.push(`PathChain ${varName} = new PathBuilder()`);
-
   robot.segments.forEach(sg => {
-    const pts = sg.points
-      .map(p => `new Point(${num(p.x)}, ${num(p.y)})`)
-      .join(", ");
-    const type = sg.points.length === 2 ? "BezierLine" : "BezierCurve";
-    lines.push(`        .addPath(new ${type}(${pts}))`);
-
+    const pts = sg.points.map(p => `new Point(${num(p.x)}, ${num(p.y)})`).join(", ");
+    lines.push(`        .addPath(new ${sg.points.length === 2 ? "BezierLine" : "BezierCurve"}(${pts}))`);
     switch (sg.headingMode) {
       case "constant":
         lines.push(`        .setConstantHeadingInterpolation(Math.toRadians(${deg(sg.headingA)}))`);
@@ -1638,24 +2125,37 @@ function toJava(robot, varName) {
       default:
         lines.push(`        .setTangentHeadingInterpolation()`);
     }
-
-    if (sg.maxVel != null) {
-      lines.push(`        .setMaxVelocity(${num(sg.maxVel)})`);
-    }
+    if (sg.maxVel != null) lines.push(`        .setMaxVelocity(${num(sg.maxVel)})`);
+    if (sg.waitAfter > 0) lines.push(`        // wait ${sg.waitAfter}s here`);
   });
-
   lines.push("        .build();");
   return lines.join("\n");
+}
+
+function toPointsArray(robot) {
+  const rows = [];
+  const c = cacheOf(robot);
+  const steps = 100;
+  for (let i = 0; i <= steps; i++) {
+    const local = localPoseAtArcLength(robot, c.total * i / steps);
+    rows.push(`  {${num(local.x)}, ${num(local.y)}, ${num(local.heading)}}`);
+  }
+  return `// ${robot.name}: {x, y, headingRad}, start-relative inches\n`
+    + `double[][] points = {\n${rows.join(",\n")}\n};`;
 }
 
 function toJson() {
   return JSON.stringify({
     format: "verniteyaku-alliance-plan",
-    version: 1,
+    version: 2,
     units: "inches",
-    frame: "path points are start-relative; start poses are field coordinates",
+    frame: "path points are start-relative; start poses and obstacles are field coordinates",
     margin: S.margin,
     robotCount: S.robotCount,
+    field: S.field.imageDataUrl && S.field.imageDataUrl.length < 2_000_000
+      ? { opacity: S.field.opacity, imageDataUrl: S.field.imageDataUrl }
+      : { opacity: S.field.opacity },
+    obstacles: S.obstacles.map(o => ({ ...o })),
     robots: activeRobots().map(r => ({
       name: r.name,
       start: { x: r.start.x, y: r.start.y, headingRad: r.start.heading },
@@ -1663,11 +2163,9 @@ function toJson() {
       motion: { maxVel: r.maxVel, maxAccel: r.maxAccel, maxDecel: r.maxDecel,
                 delay: r.delay },
       segments: r.segments.map(s => ({
-        points: s.points,
-        headingMode: s.headingMode,
-        headingA: s.headingA,
-        headingB: s.headingB,
-        maxVel: s.maxVel
+        points: s.points, headingMode: s.headingMode,
+        headingA: s.headingA, headingB: s.headingB,
+        maxVel: s.maxVel, waitAfter: s.waitAfter
       }))
     })),
     analysis: {
@@ -1679,45 +2177,85 @@ function toJson() {
   }, null, 2);
 }
 
-function updateExport() {
-  document.getElementById("exportBox").value = S.exportMode === "java"
-    ? activeRobots().map((r, i) => toJava(r, isPaired() ? "robot" + (i + 1) : "path"))
-        .join("\n\n")
-    : toJson();
+function download(filename, blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  // Revoking immediately can cancel the download in some browsers.
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-document.getElementById("tabJava").addEventListener("click", () => {
-  S.exportMode = "java";
-  document.getElementById("tabJava").classList.add("on");
-  document.getElementById("tabJson").classList.remove("on");
-  updateExport();
-});
-document.getElementById("tabJson").addEventListener("click", () => {
-  S.exportMode = "json";
-  document.getElementById("tabJson").classList.add("on");
-  document.getElementById("tabJava").classList.remove("on");
-  updateExport();
+const stamp = () =>
+  new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
+
+function showText(title, text) {
+  const existing = document.getElementById("textModal");
+  if (existing) existing.remove();
+
+  const wrap = document.createElement("div");
+  wrap.id = "textModal";
+  wrap.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,.6);
+    display:flex;align-items:center;justify-content:center;z-index:100;padding:32px`;
+  wrap.innerHTML = `
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:10px;
+                padding:14px;max-width:820px;width:100%;max-height:80vh;display:flex;
+                flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <b style="flex:1">${title}</b>
+        <button class="btn" data-act="copy">Copy</button>
+        <button class="btn" data-act="close">Close</button>
+      </div>
+      <textarea readonly spellcheck="false"
+                style="flex:1;height:52vh">${text.replace(/</g, "&lt;")}</textarea>
+    </div>`;
+
+  wrap.addEventListener("click", e => {
+    if (e.target === wrap || e.target.dataset.act === "close") wrap.remove();
+    if (e.target.dataset.act === "copy") {
+      const ta = wrap.querySelector("textarea");
+      navigator.clipboard.writeText(ta.value).then(
+        () => { e.target.textContent = "Copied"; },
+        () => { ta.select(); e.target.textContent = "Press Cmd/Ctrl+C"; });
+      setTimeout(() => { e.target.textContent = "Copy"; }, 1600);
+    }
+  });
+  document.body.appendChild(wrap);
+}
+
+exportMenu.addEventListener("click", e => {
+  const kind = e.target.dataset.export;
+  if (!kind) return;
+  exportMenu.hidden = true;
+
+  if (kind === "java") {
+    showText("Java code", activeRobots()
+      .map((r, i) => toJava(r, isPaired() ? "robot" + (i + 1) : "path"))
+      .join("\n\n"));
+  } else if (kind === "json") {
+    download(`alliance-plan-${stamp()}.json`,
+      new Blob([toJson()], { type: "application/json" }));
+  } else if (kind === "points") {
+    showText("Points array", activeRobots().map(toPointsArray).join("\n\n"));
+  } else if (kind === "png") {
+    canvas.toBlob(blob => {
+      if (blob) download(`field-${stamp()}.png`, blob);
+    }, "image/png");
+  }
 });
 
-document.getElementById("copyBtn").addEventListener("click", async () => {
-  const btn = document.getElementById("copyBtn");
-  try {
-    await navigator.clipboard.writeText(document.getElementById("exportBox").value);
-    btn.textContent = "Copied";
-  } catch {
-    // Clipboard access is blocked on file:// in some browsers; selecting the
-    // text is the honest fallback rather than pretending it worked.
-    document.getElementById("exportBox").select();
-    btn.textContent = "Press Cmd/Ctrl+C";
-  }
-  setTimeout(() => { btn.textContent = "Copy"; }, 1600);
-});
+document.getElementById("saveBtn").addEventListener("click", () =>
+  download(`alliance-plan-${stamp()}.json`,
+    new Blob([toJson()], { type: "application/json" })));
+
+/* ---------- loading ---------- */
 
 function applyPlan(data) {
   if (!Array.isArray(data.robots) || data.robots.length < 1 || data.robots.length > 2) {
     throw new Error("expected one or two robots, got "
       + (Array.isArray(data.robots) ? data.robots.length : "none"));
   }
+
   S.robotCount = data.robotCount || data.robots.length;
   S.robots = data.robots.map((r, i) => {
     const robot = makeRobot(
@@ -1725,22 +2263,31 @@ function applyPlan(data) {
       i === 0 ? "#f2734d" : "#4dc3f2",
       { x: r.start.x, y: r.start.y, heading: r.start.headingRad },
       r.segments.map(s => seg(s.points, s.headingMode, s.headingA, s.headingB,
-                              s.maxVel)));
+                              s.maxVel, s.waitAfter)));
     robot.length = r.footprint.length;
     robot.width = r.footprint.width;
     Object.assign(robot, r.motion || {});
     return robot;
   });
-  // A one-robot plan still needs a second robot in memory, so switching to a
-  // paired plan afterwards has something to work with.
-  if (S.robots.length < 2) {
-    S.robots.push(defaultState().robots[1]);
-  }
 
+  // A one-robot plan still needs a spare in memory so switching to paired has
+  // something to work with.
+  if (S.robots.length < 2) S.robots.push(defaultState().robots[1]);
+
+  S.obstacles = (data.obstacles || []).map(o => ({ ...o }));
   S.margin = data.margin || 0;
   S.selected = 0;
   S.selectedSeg = 0;
+  S.selectedPoint = null;
+  S.selectedObstacle = null;
   S.time = 0;
+
+  if (data.field) {
+    S.field.opacity = data.field.opacity != null ? data.field.opacity : 0.7;
+    document.getElementById("imgOpacity").value = String(Math.round(S.field.opacity * 100));
+    setFieldImage(data.field.imageDataUrl || null);
+  }
+
   document.getElementById("margin").value = String(S.margin);
   applyRobotCount();
   invalidate();
@@ -1762,64 +2309,78 @@ function loadPlanText(text, sourceName) {
   }
 }
 
-document.getElementById("saveBtn").addEventListener("click", () => {
-  const blob = new Blob([toJson()], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
-  a.download = `alliance-plan-${stamp}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  // Revoking immediately can cancel the download in some browsers.
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-});
-
-document.getElementById("loadBtn").addEventListener("click", () => {
-  document.getElementById("fileInput").click();
-});
+document.getElementById("openBtn").addEventListener("click", () =>
+  document.getElementById("fileInput").click());
 
 document.getElementById("fileInput").addEventListener("change", e => {
   const file = e.target.files && e.target.files[0];
   if (!file) return;
-  file.text()
-    .then(text => loadPlanText(text, file.name))
-    .catch(err => alert("Could not read that file: " + err.message));
-  // Clear it, so re-opening the same filename fires 'change' again.
+  file.text().then(t => loadPlanText(t, file.name))
+             .catch(err => alert("Could not read that file: " + err.message));
   e.target.value = "";
 });
 
-// Drag a plan onto the field to open it.
+/* Drag-drop: a .json is a plan, an image is a field backdrop. */
+const dropHint = document.getElementById("dropHint");
 ["dragenter", "dragover"].forEach(type =>
-  canvas.addEventListener(type, e => { e.preventDefault(); }));
+  canvas.addEventListener(type, e => { e.preventDefault(); dropHint.classList.add("on"); }));
+["dragleave", "drop"].forEach(type =>
+  canvas.addEventListener(type, () => dropHint.classList.remove("on")));
 
 canvas.addEventListener("drop", e => {
   e.preventDefault();
   const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
   if (!file) return;
-  file.text()
-    .then(text => loadPlanText(text, file.name))
-    .catch(err => alert("Could not read that file: " + err.message));
+  if (file.type.startsWith("image/")) {
+    const reader = new FileReader();
+    reader.onload = () => setFieldImage(reader.result);
+    reader.readAsDataURL(file);
+  } else {
+    file.text().then(t => loadPlanText(t, file.name))
+               .catch(err => alert("Could not read that file: " + err.message));
+  }
 });
 
-document.getElementById("undoBtn").addEventListener("click", undo);
-document.getElementById("redoBtn").addEventListener("click", redo);
+/* ---------- keyboard ---------- */
 
-document.getElementById("resetBtn").addEventListener("click", () => {
-  if (!confirm("Discard this plan and start over?")) return;
-  pushUndo();
-  const view = S.view;
-  const count = S.robotCount;
-  S = defaultState();
-  S.view = view;
-  S.robotCount = count;
-  document.getElementById("margin").value = "0";
-  applyRobotCount();
-  invalidate(); selectRobot(0);
+window.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA"
+      || e.target.tagName === "SELECT") return;
+
+  if (e.code === "Space") { e.preventDefault(); togglePlay(); }
+  if (e.code === "ArrowRight") {
+    S.time = Math.min(scan.duration, S.time + SCAN_DT); syncScrub(); render();
+  }
+  if (e.code === "ArrowLeft") {
+    S.time = Math.max(0, S.time - SCAN_DT); syncScrub(); render();
+  }
+
+  if ((e.code === "Delete" || e.code === "Backspace") && S.selectedPoint) {
+    const r = selectedRobot();
+    const sg = r.segments[S.selectedPoint.segment];
+    // Endpoints are shared joints; removing one would tear the chain apart.
+    if (sg.points.length > 2 && S.selectedPoint.index > 0
+        && S.selectedPoint.index < sg.points.length - 1) {
+      e.preventDefault();
+      pushUndo();
+      sg.points.splice(S.selectedPoint.index, 1);
+      S.selectedPoint = null;
+      invalidate(); syncPanel(); render();
+    }
+  }
+
+  const mod = e.metaKey || e.ctrlKey;
+  if (mod && e.key.toLowerCase() === "z") {
+    e.preventDefault();
+    if (e.shiftKey) redo(); else undo();
+  }
+  if (mod && e.key.toLowerCase() === "s") {
+    e.preventDefault();
+    document.getElementById("saveBtn").click();
+  }
 });
 
-/* --- boot ---------------------------------------------------------------- */
+/* ---------- boot ---------- */
 
 window.addEventListener("resize", render);
 applyRobotCount();

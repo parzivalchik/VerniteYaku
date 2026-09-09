@@ -176,8 +176,14 @@ un-driven half the auto.
 Drag path chains, scrub a timeline that runs the same profile the follower does,
 and export ready-to-paste `pathBuilder()` code in this same start-relative frame.
 
-Plan for **one robot** — just a visual path editor for your own auto — or **two**,
-which additionally checks both alliance partners' paths against each other for
-collisions using exact rotated-rectangle intersection. Switch under *Plan for*.
+Plan for **one robot** — a visual path editor for your own auto — or **two**,
+which additionally checks both alliance partners' paths against each other.
+Either way it tests against **obstacles** you define, using the same exact
+rotated-rectangle intersection.
+
+It also supports mid-path **waits**. Those are not part of a `PathChain` — the
+export flags them as comments — so sequence them yourself, for instance with
+`Commands.waitSeconds()` between two `FollowPathCommand`s. See
+[commands.md](commands.md).
 
 See the [README](../README.md#alliance-planner).

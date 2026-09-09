@@ -449,20 +449,16 @@ for all three Phase 3 pieces working together.
 `tools/alliance-planner/index.html` — open it in a browser. No build step, no
 server, no dependency on the Java library.
 
-**Plan for one robot or two.** Pick under *Plan for*: two robots checks both
-alliance partners' autos against each other and tells you whether they collide
-before you find out on the field; one robot is just a path editor for your own
-auto, with the collision check switched off and everything else — the timeline,
-the profile, the Java export — unchanged. Robot 2 stays in memory while hidden,
-so switching back does not lose its path.
+**Plan for one robot or two.** Two robots checks both alliance partners' autos
+against each other; one robot is just a path editor for your own. Robot 2 stays
+in memory while hidden, so switching back does not lose its path.
 
-Drag multi-segment path chains, scrub a synced timeline, and get an exact
-answer.
+### What it checks
 
-Collision testing is the separating axis theorem on the two rotated rectangles,
-not a bounding-circle approximation. The difference is not academic — for two
-18" robots, a circle test reports a collision at every centre distance under
-25.5", including cases with 7" of genuine clearance:
+Collision testing is the separating axis theorem on rotated rectangles, not a
+bounding-circle approximation. The difference is not academic — for two 18"
+robots, a circle test reports a collision at every centre distance under 25.5",
+including cases with 7" of genuine clearance:
 
 | Centres apart | Bounding circle | SAT | True clearance |
 |---|---|---|---|
@@ -470,34 +466,48 @@ not a bounding-circle approximation. The difference is not academic — for two
 | 22" | COLLIDE | clear | 4" |
 | 25" | COLLIDE | clear | 7" |
 
-It runs the same constrained profile the follower does — the same
-forward-backward sweep, verified to produce identical numbers — so the timeline
+The same exact test runs against **obstacles** — named, coloured, rotatable
+rectangles for goals, trusses, or a partner's parked robot. The verdict names
+whatever got hit and when.
+
+### Why the timeline is trustworthy
+
+It runs the same trapezoidal profile and the same forward-backward velocity
+solve the follower does, including per-segment speed caps. So the timeline
 reflects when each robot is actually *somewhere*, not just where its path goes.
-Per-segment speed caps set here are respected in the timing and emitted in the
-Java export as `setMaxVelocity()`. Per-robot
-start delays let you test "wait 2 seconds, then go" without touching either path.
-A robot that finishes its path stays parked there and still counts — which is
+
+Per-robot **start delays** let you test "wait two seconds, then go" without
+touching either path. **Waits** park a robot mid-path — and because a wait is a
+real stop, the chain splits there and the robot brakes to rest and accelerates
+again. A 2 s wait typically costs nearer 2.7 s; the timeline shows the true
+figure rather than the one you asked for.
+
+A robot that finishes its path stays parked there and still counts, which is
 usually the collision people miss.
 
-**Coordinates match the library.** Each robot's start pose is placed in field
-coordinates, and its path is stored relative to that start — the frame
-`PathChain` and `Pose2d` actually use. The Java export emits ready-to-paste
-`pathBuilder()` code in that frame, with the field start pose as a comment,
-because the library has no concept of where the field is and generating code that
-implied otherwise would be a lie you would then have to debug.
+### Coordinates match the library
 
-Plans **save and load as `.json`** — a real file you can commit next to your
-auto, reopen next week, or drop onto the field to load. One- and two-robot plans
-both round-trip, and a plan saved before the mode existed still opens. Full undo/redo
-(⌘/ctrl+Z), and ⌘/ctrl+S to save.
+Each robot's start pose is placed in field coordinates, and its path is stored
+relative to that start — the frame `PathChain` and `Pose2d` actually use. The
+Java export emits ready-to-paste `pathBuilder()` code in that frame, with the
+field start pose as a comment, because the library has no concept of where the
+field is and generating code that implied otherwise would be a lie you would
+then have to debug.
 
-`PlannerExportTest` compiles a verbatim copy of that export, so a renamed builder
-method breaks the build rather than breaking someone's auto at a competition.
+`PlannerExportTest` compiles a verbatim copy of that export, so a renamed
+builder method breaks the build rather than breaking someone's auto at a
+competition.
 
-Explicitly out of scope: a physics/battery-sag simulator, swerve and x-drive
-implementations, and full MPC.
+### The rest
 
----
+- **Field backdrop** — drop in an official field image and it stretches over the
+  144" square. No game field is drawn from memory: one that is subtly wrong is
+  worse than none, because you would plan against fiction.
+- **Exports** — Java code, plan JSON, a sampled points array, or the field as a
+  PNG.
+- **Save / open** — plans are real `.json` files you can commit next to your
+  auto. Drop one on the canvas to open it.
+- **Undo / redo** across every edit, including the one/two-robot switch.
 
 ## Licence
 
