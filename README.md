@@ -11,8 +11,6 @@ and per-motor stall detection.
 It is a **library**, not a team's robot code. Nothing here is specific to one
 chassis, one hub layout, or one season.
 
-**Status: all three phases complete.** 233 headless tests, no hardware required.
-
 Not yet run on a robot — see [BRINGUP.md](BRINGUP.md) before you try.
 
 ---
