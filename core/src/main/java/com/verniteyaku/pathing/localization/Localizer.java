@@ -12,7 +12,8 @@ import com.verniteyaku.pathing.geometry.Twist2d;
  * interface and fuses several. The follower does not care which, and does not
  * change when the fusion layer lands.
  *
- * <p>All poses are in the start-relative frame described on {@link Pose2d}.
+ * <p>All poses are in the field frame described on {@link
+ * com.verniteyaku.pathing.geometry.FieldCoordinates}.
  */
 public interface Localizer {
 
@@ -26,10 +27,16 @@ public interface Localizer {
     Pose2d getPose();
 
     /**
-     * Overrides the current estimate. Intended for setting the origin at the
-     * start of an auto, not for mid-path corrections -- Phase 2's fusion layer
-     * folds vision in as a measurement update instead of a hard reset, precisely
-     * so that a bad AprilTag read cannot teleport the robot mid-path.
+     * Overrides the current estimate.
+     *
+     * <p>Prefer the localizer's {@code startPose} for the initial field pose --
+     * it is applied before the first {@code update()}, so the IMU is calibrated
+     * against it. This method exists for the rarer case of re-basing mid-match
+     * against something you trust completely.
+     *
+     * <p>Not the way to fold in vision. {@link FusedLocalizer} takes an
+     * observation as a weighted measurement update, precisely so that a bad
+     * AprilTag read cannot teleport the robot mid-path.
      */
     void setPose(Pose2d pose);
 

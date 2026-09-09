@@ -38,28 +38,26 @@ while (opModeIsActive() && follower.isBusy()) {
 | Pedro | Here |
 |---|---|
 | `follower.pathBuilder()` | `new PathBuilder()` — not owned by the follower |
-| Field-relative coordinates | **Start-relative.** See below |
+| Field coordinates, origin at a corner | Field coordinates, **origin at field centre** |
 | `Point(x, y, Point.CARTESIAN)` | `new Point(x, y)`, or `Point.of(x, y, unit)` |
 | Heading in `Math.toRadians(...)` | Same — radians throughout |
-| `follower.setStartingPose(...)` | `localizer.setPose(...)` |
+| `follower.setStartingPose(...)` | `localizer` builder's `.startPose(...)` |
 | `follower.holdPoint(...)` | Not built. Use a one-point path or hold position yourself |
 | `FollowerConstants` static fields | An immutable builder, per-follower |
 
-**The coordinate frame is the big one.** Pedro uses field coordinates; here the
-origin is wherever the robot starts. A Pedro path that begins at field
-`(9, 60, 0)` becomes a path beginning at `(0, 0, 0)`, with every subsequent point
-expressed relative to that start.
+**Check where your origin is.** Both are field frames, so a Pedro path ports
+almost directly — but Pedro's coordinates are commonly set up with the origin at
+a field corner, in the 0–144 range, while this library puts the origin at the
+field centre, in −72…+72.
 
-To port a path, subtract the start position from every point and rotate by the
-negative start heading:
+If yours are corner-based, subtract 72 from each axis:
 
 ```java
-// If the Pedro auto started at field (9, 60) facing 0 degrees, then a Pedro
-// point (33, 60) becomes (33-9, 60-60) = (24, 0) here.
+// Pedro (9, 60)  ->  here (9 - 72, 60 - 72) = (-63, -12)
 ```
 
-If your start heading was not zero, rotate as well — or let
-`Pose2d.relativeTo(startPose)` do it.
+`FieldCoordinates.HALF_FIELD_INCHES` is that 72. Nothing else about the path
+changes — headings, curves and interpolation all mean the same thing.
 
 Tuning constants do **not** carry over. Pedro's are structured differently; start
 from [tuning.md](tuning.md) and re-tune. The [online tuner](tuning.md#online-tuning)
@@ -81,7 +79,7 @@ the same amount of time every run, so an auto timed around them stays timed.
 |---|---|
 | `TrajectorySequenceBuilder` | `PathBuilder` — geometry only, no time |
 | `Actions.runBlocking(...)` | Your own loop, or the [command layer](commands.md) |
-| Field coordinates | Start-relative |
+| Field coordinates | Field coordinates, origin at field centre |
 | `kV` against raw duty | `kV` against **battery-normalised** voltage |
 | Trajectory-level markers | Not built. Sequence with commands instead |
 | `MecanumDrive` doing everything | `Drivetrain` + `Kinematics` + `Localizer` + `Follower` |

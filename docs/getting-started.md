@@ -61,8 +61,11 @@ public class MyAuto extends LinearOpMode {
                 .build();
         drivetrain.resetEncoders();
 
-        // 2. Say where the robot is. Encoders predict, the IMU corrects.
+        // 2. Say where the robot is. Coordinates are absolute field positions,
+        //    so the starting spot has to be measured and given -- it cannot be
+        //    worked out from the encoders.
         FusedLocalizer localizer = FusedLocalizer.builder(drivetrain, Clock.system())
+                .startPose(new Pose2d(-60, -36, 0))
                 .headingSource(new ImuHeadingSource(hardwareMap.get(IMU.class, "imu")))
                 .build();
 
@@ -76,9 +79,10 @@ public class MyAuto extends LinearOpMode {
 
         PathFollower follower = new PathFollower(drivetrain, localizer, constants);
 
-        // 4. Describe the path. Coordinates are relative to where you start.
+        // 4. Describe the path, in field coordinates. Starting the chain at the
+        //    robot's own position means it does not have to drive onto the path.
         PathChain chain = new PathBuilder()
-                .addPath(new BezierLine(new Point(0, 0), new Point(24, 0)))
+                .addPath(new BezierLine(new Point(-60, -36), new Point(-36, -36)))
                 .setLinearHeadingInterpolation(0, Math.toRadians(90))
                 .build();
 

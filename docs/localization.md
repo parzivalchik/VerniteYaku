@@ -10,8 +10,8 @@ swapping is a one-line change.
 ```java
 public interface Localizer {
     void update();                  // read sensors, advance the estimate
-    Pose2d getPose();               // best estimate, start-relative
-    void setPose(Pose2d pose);      // override -- for setting the origin
+    Pose2d getPose();               // best estimate, field coordinates
+    void setPose(Pose2d pose);      // override -- prefer startPose at init
     ChassisSpeeds getVelocity();    // robot-relative
     Twist2d getLastTwist();         // movement over the last update
     double getConfidence();         // [0, 1], 1 = tight estimate
@@ -21,6 +21,11 @@ public interface Localizer {
 `getConfidence()` defaults to 1.0. That is the honest answer for dead reckoning:
 it has no idea how wrong it is. Only `FusedLocalizer` returns anything else.
 
+**Both need a `startPose`.** Poses are absolute field coordinates, and absolute
+coordinates cannot be inferred from encoders. The default is the field centre
+facing +X, which is almost certainly not where your robot is — get it wrong and
+every path is offset by the same amount.
+
 ---
 
 ## DriveEncoderLocalizer
@@ -29,8 +34,10 @@ Odometry from the drive motors' own encoders, with the IMU optionally overriding
 wheel-derived heading.
 
 ```java
-DriveEncoderLocalizer localizer = new DriveEncoderLocalizer(
-        drivetrain, Clock.system(), new ImuHeadingSource(imu));
+DriveEncoderLocalizer localizer = DriveEncoderLocalizer.builder(drivetrain, Clock.system())
+        .startPose(new Pose2d(-60, -36, 0))
+        .headingSource(new ImuHeadingSource(imu))
+        .build();
 ```
 
 No extra hardware, and the least accurate option: mecanum wheels slip laterally
@@ -51,6 +58,7 @@ by their own variance.
 
 ```java
 FusedLocalizer localizer = FusedLocalizer.builder(drivetrain, Clock.system())
+        .startPose(new Pose2d(-60, -36, 0))
         .headingSource(new ImuHeadingSource(imu))
         .headingVariance(1e-4)     // ~0.6 degrees of sigma
         .build();
@@ -129,8 +137,10 @@ The IMU must already be initialised with your hub's orientation before this is
 constructed — the library takes it as it finds it, because the orientation
 depends on how the hub is bolted to the robot.
 
-Whatever the gyro reads at the first `update()` defines heading zero. That is
-what makes the frame start-relative.
+Whatever the gyro reads at the first `update()` is calibrated against the
+configured `startPose` heading. That is what puts the estimate in field
+coordinates rather than relative to power-on — the IMU's own zero is arbitrary
+and never appears in a pose.
 
 ---
 
@@ -139,12 +149,12 @@ what makes the frame start-relative.
 `VisionPoseSource` is a **stub**. The interface and the `FusedLocalizer` plumbing
 that consumes it are finished and tested against scripted observations. The
 AprilTag half — camera calibration, tag-field layout, turning a detection into a
-start-relative pose — is not built.
+field-coordinate pose — is not built.
 
 ```java
 public interface VisionPoseSource {
     final class Observation {
-        public final Pose2d pose;        // start-relative
+        public final Pose2d pose;        // field coordinates
         public final double[] variance;  // {x, y, heading}
         public final double timestamp;
     }
@@ -163,8 +173,9 @@ If you implement it:
 
 - Return `null` when there is no fresh detection. The localizer skips the update;
   it never blocks.
-- Report poses in the **start-relative** frame, not the field frame. That means
-  knowing where the robot started — a decision for your OpMode, not this library.
+- Report poses in **field coordinates**. This is the easy direction now: a tag's
+  field position is fixed and published, so a detection converts straight into an
+  absolute pose with no knowledge of where the robot started.
 - Scale variances with observed range and viewing angle. Constant variances
   defeat the purpose of fusing.
 

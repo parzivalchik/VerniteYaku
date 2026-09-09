@@ -13,8 +13,8 @@ import com.verniteyaku.pathing.geometry.Angles;
 public interface HeadingInterpolator {
 
     /**
-     * The desired heading, radians CCW in the start-relative frame, at parameter
-     * {@code t} along {@code path}.
+     * The desired heading, radians CCW from field +X, at parameter {@code t}
+     * along {@code path}.
      */
     double heading(Path path, double t);
 

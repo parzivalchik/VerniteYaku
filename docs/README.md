@@ -18,9 +18,10 @@ API reference: `./gradlew :core:javadoc`, then open
 
 ## The two things to know before anything else
 
-**Coordinates are start-relative.** The origin is wherever the robot sits when
-the follower is constructed. `new Point(24, 0)` means "two feet ahead of where I
-started", not a fixed spot on the field. See [Paths](paths.md#coordinates).
+**Coordinates are field coordinates.** Origin at field centre, heading CCW from
++X. `new Point(-36, -36)` is a fixed spot, and the library must be told where the
+robot starts via the localizer's `startPose`. See
+[Paths](paths.md#coordinates).
 
 **Units are yours; angles are radians.** Every builder takes a `DistanceUnit` and
 converts at the boundary. Angles are always radians, with no unit switch — use

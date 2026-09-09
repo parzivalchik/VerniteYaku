@@ -20,7 +20,8 @@ import com.verniteyaku.pathing.math.Matrix3;
  * <p>Not thread-safe; call it from the control loop only.
  *
  * <h2>Frames</h2>
- * Everything is in the start-relative frame described on {@link Pose2d}.
+ * Everything is in field coordinates -- see {@link
+ * com.verniteyaku.pathing.geometry.FieldCoordinates}.
  */
 public final class EKFPoseFuser implements PoseFuser {
 

@@ -21,8 +21,8 @@ public final class ChassisSpeeds {
     }
 
     /**
-     * Converts a velocity expressed in the start-relative (world) frame into a
-     * robot-relative command, given the robot's current heading.
+     * Converts a velocity expressed in field coordinates into a robot-relative
+     * command, given the robot's current heading.
      */
     public static ChassisSpeeds fromFieldRelative(Vector2d worldVelocity, double omega,
                                                   double robotHeading) {

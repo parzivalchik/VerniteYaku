@@ -27,7 +27,7 @@ public interface PoseFuser {
     /**
      * Measurement update from a heading sensor, typically the IMU.
      *
-     * @param headingRad measured heading, radians CCW, start-relative
+     * @param headingRad measured heading, radians CCW from field +X
      * @param variance   the measurement's variance, radians squared. Larger means
      *                   trusted less.
      */
@@ -37,7 +37,7 @@ public interface PoseFuser {
      * Measurement update from an absolute pose observation -- AprilTags, once
      * Phase 3 wires them up.
      *
-     * @param observed  the observed pose, start-relative
+     * @param observed  the observed pose, in field coordinates
      * @param variance  {x, y, heading} variances, inches squared and radians squared
      */
     void correctPose(Pose2d observed, double[] variance);

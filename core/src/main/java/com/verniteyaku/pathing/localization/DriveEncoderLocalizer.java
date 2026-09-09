@@ -18,9 +18,14 @@ import com.verniteyaku.pathing.kinematics.Kinematics;
  * long auto. Supplying a {@link HeadingSource} fixes the worst of it, since
  * heading error is what turns small translation errors into large ones.
  *
- * <p>Phase 2's EKF replaces the heading override here with a proper measurement
- * update, so the IMU informs the estimate in proportion to its trustworthiness
- * rather than simply overwriting it.
+ * <p>{@link FusedLocalizer} replaces the heading override here with a proper
+ * measurement update, so the IMU informs the estimate in proportion to its
+ * trustworthiness rather than simply overwriting it.
+ *
+ * <p>Poses are in the field frame described by {@link
+ * com.verniteyaku.pathing.geometry.FieldCoordinates}, so this must be told where
+ * the robot starts -- it cannot work that out from the encoders. Use the
+ * builder's {@code startPose}.
  */
 public final class DriveEncoderLocalizer implements Localizer {
 
@@ -29,33 +34,64 @@ public final class DriveEncoderLocalizer implements Localizer {
     private final Clock clock;
     private final HeadingSource headingSource;
 
-    private Pose2d pose = Pose2d.ZERO;
+    private Pose2d pose;
     private double[] lastWheelPositions;
     private double lastTime = Double.NaN;
     private double headingOffset = Double.NaN;
     private ChassisSpeeds velocity = ChassisSpeeds.ZERO;
     private Twist2d lastTwist = Twist2d.ZERO;
 
-    /** Encoder-only odometry. Heading is integrated from the wheels. */
-    public DriveEncoderLocalizer(Drivetrain drivetrain, Clock clock) {
-        this(drivetrain, clock, null);
+    private DriveEncoderLocalizer(Builder b) {
+        this.drivetrain = b.drivetrain;
+        this.kinematics = b.drivetrain.getKinematics();
+        this.clock = b.clock;
+        this.headingSource = b.headingSource;
+        this.pose = b.startPose;
     }
 
-    /**
-     * Encoder odometry with heading taken from {@code headingSource}.
-     *
-     * @param headingSource may be null, in which case heading is integrated from
-     *                      the wheels alone
-     */
-    public DriveEncoderLocalizer(Drivetrain drivetrain, Clock clock,
-                                 HeadingSource headingSource) {
-        if (drivetrain == null || clock == null) {
-            throw new IllegalArgumentException("drivetrain and clock must be non-null");
+    public static Builder builder(Drivetrain drivetrain, Clock clock) {
+        return new Builder(drivetrain, clock);
+    }
+
+    public static final class Builder {
+        private final Drivetrain drivetrain;
+        private final Clock clock;
+        private HeadingSource headingSource;
+        private Pose2d startPose = Pose2d.ZERO;
+
+        private Builder(Drivetrain drivetrain, Clock clock) {
+            if (drivetrain == null || clock == null) {
+                throw new IllegalArgumentException("drivetrain and clock must be non-null");
+            }
+            this.drivetrain = drivetrain;
+            this.clock = clock;
         }
-        this.drivetrain = drivetrain;
-        this.kinematics = drivetrain.getKinematics();
-        this.clock = clock;
-        this.headingSource = headingSource;
+
+        /**
+         * Where the robot actually is when the auto begins, in field
+         * coordinates. Defaults to the field centre facing +X, which is almost
+         * certainly not where your robot is.
+         *
+         * <p>Get this wrong and every path is offset by the same error -- the
+         * robot drives the right shape in the wrong place.
+         */
+        public Builder startPose(Pose2d startPose) {
+            if (startPose == null) {
+                throw new IllegalArgumentException("startPose must be non-null");
+            }
+            this.startPose = startPose;
+            return this;
+        }
+
+        /** The IMU. Without it, heading is integrated from the wheels alone. */
+        public Builder headingSource(HeadingSource source) {
+            this.headingSource = source;
+            return this;
+        }
+
+        public DriveEncoderLocalizer build() {
+            return new DriveEncoderLocalizer(this);
+        }
     }
 
     @Override
@@ -67,8 +103,9 @@ public final class DriveEncoderLocalizer implements Localizer {
             lastWheelPositions = positions.clone();
             lastTime = now;
             if (headingSource != null) {
-                // Whatever the gyro reads at the first update defines heading
-                // zero, which is what makes the frame start-relative.
+                // The gyro's reading at the first update is calibrated against
+                // the configured start heading, which is what puts the estimate
+                // in field coordinates rather than relative to power-on.
                 headingOffset = headingSource.getHeadingRadians() - pose.heading;
             }
             return;

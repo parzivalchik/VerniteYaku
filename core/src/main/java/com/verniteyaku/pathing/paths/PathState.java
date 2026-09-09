@@ -18,7 +18,7 @@ public final class PathState {
     public final double t;
     /** Arc length from the start of the whole chain, inches. */
     public final double arcLength;
-    /** Position, start-relative inches. */
+    /** Position in field coordinates, inches. */
     public final Vector2d point;
     /** Unit tangent -- the direction the path travels here. */
     public final Vector2d tangent;

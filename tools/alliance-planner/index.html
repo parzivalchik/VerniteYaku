@@ -401,9 +401,9 @@
         <div class="row narrow"><label>Width</label><input type="number" id="rwid" step="0.5"></div>
       </div>
       <div class="hint" style="margin-top:8px">
-        Start pose is in field coordinates. The path itself is stored relative to
-        it &mdash; the frame the Java library actually uses. Drag the robot to move
-        the plan; drag the ring to spin it.
+        Everything is field coordinates, origin at field centre. The start
+        position <i>is</i> the path's first point, so dragging the robot
+        translates the whole plan and the ring rotates it about that point.
       </div>
     </div>
 
@@ -428,7 +428,8 @@
         <div class="row narrow"><label>Y</label><input type="number" id="pty" step="0.5"></div>
       </div>
       <div class="hint" id="pointHint" style="margin-top:8px">
-        Click a handle on the field to select it. Coordinates are start-relative.
+        Click a handle on the field to select it. Coordinates are absolute
+        field positions.
       </div>
     </div>
 
@@ -683,6 +684,15 @@ function seg(points, headingMode, headingA, headingB, maxVel, waitAfter) {
   };
 }
 
+/**
+ * The robot's starting position is the first point of its path. Keeping a
+ * separate copy would let the two drift apart and silently describe a robot
+ * placed somewhere its own auto does not begin.
+ */
+function startPositionOf(robot) {
+  return robot.segments[0].points[0];
+}
+
 function makeRobot(name, color, start, segments) {
   return {
     name, color, start,
@@ -702,12 +712,13 @@ function defaultState() {
   return {
     robots: [
       makeRobot("Robot 1", "#f2734d", { x: -60, y: -36, heading: 0 }, [
-        seg([{ x: 0, y: 0 }, { x: 36, y: 0 }], "tangent"),
-        seg([{ x: 36, y: 0 }, { x: 54, y: 0 }, { x: 60, y: 24 }], "linear", 0, Math.PI / 2)
+        seg([{ x: -60, y: -36 }, { x: -24, y: -36 }], "tangent"),
+        seg([{ x: -24, y: -36 }, { x: -6, y: -36 }, { x: 0, y: -12 }],
+            "linear", 0, Math.PI / 2)
       ]),
       makeRobot("Robot 2", "#4dc3f2", { x: 60, y: 36, heading: Math.PI }, [
-        seg([{ x: 0, y: 0 }, { x: 40, y: 0 }], "tangent"),
-        seg([{ x: 40, y: 0 }, { x: 58, y: 0 }, { x: 64, y: -20 }], "tangent")
+        seg([{ x: 60, y: 36 }, { x: 20, y: 36 }], "tangent"),
+        seg([{ x: 20, y: 36 }, { x: 2, y: 36 }, { x: -4, y: 56 }], "tangent")
       ])
     ],
     obstacles: [],
@@ -812,14 +823,12 @@ function localPoseAtArcLength(robot, s) {
   return { x: p.x, y: p.y, heading: segmentHeading(robot.segments[index], path, t) };
 }
 
-const toField = (robot, local) => {
-  const r = rotate(local.x, local.y, robot.start.heading);
-  return {
-    x: robot.start.x + r.x,
-    y: robot.start.y + r.y,
-    heading: normalizeAngle(robot.start.heading + local.heading)
-  };
-};
+/**
+ * Path points are already field coordinates, so there is nothing to transform.
+ * This stays as a named seam because it used to be a real change of frame, and
+ * every call site reads more clearly for saying which frame it is in.
+ */
+const toField = (robot, local) => ({ x: local.x, y: local.y, heading: local.heading });
 
 /** Field pose and speed at time t, honouring the start delay and any waits. */
 function stateAtTime(robot, time) {
@@ -1113,10 +1122,7 @@ function drawPath(robot, rect, isSelected) {
   if (!isSelected) return;
 
   robot.segments.forEach((sg, si) => {
-    const pts = sg.points.map(p => {
-      const f = toField(robot, { x: p.x, y: p.y, heading: 0 });
-      return worldToScreen(f.x, f.y, rect);
-    });
+    const pts = sg.points.map(p => worldToScreen(p.x, p.y, rect));
 
     if (pts.length > 2) {
       ctx.strokeStyle = "rgba(255,255,255,.18)";
@@ -1182,7 +1188,8 @@ function drawRobot(rect, robot, pose, colliding, waiting) {
 
 function drawStartHandle(rect, robot, isSelected) {
   if (!isSelected) return;
-  const s = worldToScreen(robot.start.x, robot.start.y, rect);
+  const sp = startPositionOf(robot);
+  const s = worldToScreen(sp.x, sp.y, rect);
   const radius = Math.max(robot.length, robot.width) / 2 * S.view.scale + 10;
 
   ctx.beginPath();
@@ -1401,7 +1408,8 @@ let drag = null;
 function hitTest(px, py, rect) {
   const robot = selectedRobot();
 
-  const s = worldToScreen(robot.start.x, robot.start.y, rect);
+  const sp = startPositionOf(robot);
+  const s = worldToScreen(sp.x, sp.y, rect);
   const radius = Math.max(robot.length, robot.width) / 2 * S.view.scale + 10;
   const grip = {
     x: s.x + Math.cos(-robot.start.heading) * radius,
@@ -1413,9 +1421,8 @@ function hitTest(px, py, rect) {
   for (let si = robot.segments.length - 1; si >= 0; si--) {
     const sg = robot.segments[si];
     for (let pi = sg.points.length - 1; pi >= 0; pi--) {
-      const f = toField(robot, { x: sg.points[pi].x, y: sg.points[pi].y, heading: 0 });
-      const sp = worldToScreen(f.x, f.y, rect);
-      if (Math.hypot(px - sp.x, py - sp.y) < 9) {
+      const p = worldToScreen(sg.points[pi].x, sg.points[pi].y, rect);
+      if (Math.hypot(px - p.x, py - p.y) < 9) {
         return { kind: "point", segment: si, index: pi };
       }
     }
@@ -1442,7 +1449,8 @@ canvas.addEventListener("pointerdown", e => {
   // Clicking near the other robot selects it -- when there is one.
   if (isPaired() && hit.kind === "pan") {
     const other = 1 - S.selected;
-    const os = worldToScreen(S.robots[other].start.x, S.robots[other].start.y, rect);
+    const osp = startPositionOf(S.robots[other]);
+    const os = worldToScreen(osp.x, osp.y, rect);
     const orad =
       Math.max(S.robots[other].length, S.robots[other].width) / 2 * S.view.scale + 10;
     if (Math.hypot(px - os.x, py - os.y) < orad) { selectRobot(other); return; }
@@ -1484,22 +1492,30 @@ canvas.addEventListener("pointermove", e => {
     S.view.oy = drag.oy + (py - drag.startY);
 
   } else if (drag.kind === "start") {
+    // The start is the path's first point, so dragging the robot translates the
+    // whole plan across the field rather than sliding the robot off its path.
     const w = screenToWorld(px, py, rect);
-    robot.start.x = Math.round(w.x * 10) / 10;
-    robot.start.y = Math.round(w.y * 10) / 10;
+    const from = startPositionOf(robot);
+    translatePath(robot,
+      Math.round((w.x - from.x) * 10) / 10,
+      Math.round((w.y - from.y) * 10) / 10);
     invalidate();
 
   } else if (drag.kind === "rotate") {
-    const s = worldToScreen(robot.start.x, robot.start.y, rect);
-    robot.start.heading = normalizeAngle(-Math.atan2(py - s.y, px - s.x));
+    // Spin the plan about its own start point, and carry the start heading and
+    // any fixed heading targets round with it.
+    const pivot = startPositionOf(robot);
+    const sp = worldToScreen(pivot.x, pivot.y, rect);
+    const wanted = normalizeAngle(-Math.atan2(py - sp.y, px - sp.x));
+    rotatePath(robot, normalizeAngle(wanted - robot.start.heading));
+    robot.start.heading = wanted;
     invalidate();
 
   } else if (drag.kind === "point") {
+    // Points are field coordinates, so the cursor position is the answer.
     const w = screenToWorld(px, py, rect);
-    // Back out of the field frame into the robot's start-relative frame.
-    const rel = rotate(w.x - robot.start.x, w.y - robot.start.y, -robot.start.heading);
     movePoint(robot, drag.segment, drag.index,
-      Math.round(rel.x * 10) / 10, Math.round(rel.y * 10) / 10);
+      Math.round(w.x * 10) / 10, Math.round(w.y * 10) / 10);
     invalidate();
 
   } else if (drag.kind === "obstacle") {
@@ -1524,6 +1540,36 @@ canvas.addEventListener("pointerup", e => {
  * with it. Letting a chain come apart at a joint would silently produce a path
  * the library cannot follow continuously.
  */
+/** Spins a path about its own start point by {@code delta} radians. */
+function rotatePath(robot, delta) {
+  if (Math.abs(delta) < 1e-12) return;
+  const pivot = { ...startPositionOf(robot) };
+  robot.segments.forEach(sg => {
+    sg.points = sg.points.map(p => {
+      const r = rotate(p.x - pivot.x, p.y - pivot.y, delta);
+      return {
+        x: Math.round((pivot.x + r.x) * 10) / 10,
+        y: Math.round((pivot.y + r.y) * 10) / 10
+      };
+    });
+    // Constant and linear heading targets are absolute field angles, so they
+    // have to turn with the plan or the robot ends up facing the old direction.
+    sg.headingA = normalizeAngle(sg.headingA + delta);
+    sg.headingB = normalizeAngle(sg.headingB + delta);
+  });
+}
+
+/** Slides every point of a path by the same field-frame offset. */
+function translatePath(robot, dx, dy) {
+  if (dx === 0 && dy === 0) return;
+  robot.segments.forEach(sg => {
+    sg.points = sg.points.map(p => ({
+      x: Math.round((p.x + dx) * 10) / 10,
+      y: Math.round((p.y + dy) * 10) / 10
+    }));
+  });
+}
+
 function movePoint(robot, segIndex, ptIndex, x, y) {
   const sg = robot.segments[segIndex];
   sg.points[ptIndex] = { x, y };
@@ -1691,7 +1737,7 @@ document.getElementById("modeSolo").addEventListener("click", () => setRobotCoun
 document.getElementById("modePair").addEventListener("click", () => setRobotCount(2));
 
 const fields = {
-  sx: r => r.start.x, sy: r => r.start.y,
+  sx: r => startPositionOf(r).x, sy: r => startPositionOf(r).y,
   sh: r => Math.round(r.start.heading * 180 / Math.PI * 10) / 10,
   rlen: r => r.length, rwid: r => r.width,
   mv: r => r.maxVel, ma: r => r.maxAccel, md: r => r.maxDecel,
@@ -1699,9 +1745,15 @@ const fields = {
 };
 
 const setters = {
-  sx: (r, v) => r.start.x = v,
-  sy: (r, v) => r.start.y = v,
-  sh: (r, v) => r.start.heading = normalizeAngle(v * Math.PI / 180),
+  // Editing the start position translates the whole plan, because the start
+  // *is* the path's first point.
+  sx: (r, v) => translatePath(r, v - startPositionOf(r).x, 0),
+  sy: (r, v) => translatePath(r, 0, v - startPositionOf(r).y),
+  sh: (r, v) => {
+    const wanted = normalizeAngle(v * Math.PI / 180);
+    rotatePath(r, normalizeAngle(wanted - r.start.heading));
+    r.start.heading = wanted;
+  },
   rlen: (r, v) => r.length = Math.max(1, v),
   rwid: (r, v) => r.width = Math.max(1, v),
   mv: (r, v) => r.maxVel = Math.max(1, v),
@@ -1763,13 +1815,13 @@ function syncPanel() {
     document.getElementById("pointLabel").textContent =
       `path ${S.selectedPoint.segment} · point ${S.selectedPoint.index}`;
     document.getElementById("pointHint").textContent =
-      "Start-relative inches. Shared joints move both segments together.";
+      "Field-coordinate inches. Shared joints move both segments together.";
   } else {
     ptx.value = pty.value = "";
     ptx.disabled = pty.disabled = true;
     document.getElementById("pointLabel").textContent = "none selected";
     document.getElementById("pointHint").textContent =
-      "Click a handle on the field to select it. Coordinates are start-relative.";
+      "Click a handle on the field to select it. Coordinates are absolute.";
   }
 
   document.getElementById("pathCount").textContent =
@@ -2083,20 +2135,24 @@ exportMenu.addEventListener("click", e => e.stopPropagation());
 /* ==========================================================================
    Export
 
-   Java comes out in each robot's start-relative frame, because that is the
-   frame PathChain lives in. The start pose is emitted as a comment rather than
-   as code: the library has no concept of where the field is, and pretending
-   otherwise in generated code would be a lie you would then have to debug.
+   Java comes out in field coordinates, which is the frame PathChain lives in,
+   so the numbers you see on the canvas are the numbers you paste.
+
+   The start pose is emitted as a commented-out `.startPose(...)` line rather
+   than as part of the chain. It belongs on the localizer, not the path, and
+   which localizer you are building is your business.
    ========================================================================== */
 
 const num = v => (Math.round(v * 1000) / 1000).toFixed(3);
 const deg = rad => (Math.round(rad * 180 / Math.PI * 100) / 100).toFixed(2);
 
 function toJava(robot, varName) {
+  const sp = startPositionOf(robot);
   const lines = [];
-  lines.push(`// ${robot.name} -- start-relative path, inches.`);
-  lines.push(`// Place the robot at field (${num(robot.start.x)}, ${num(robot.start.y)}) `
-    + `facing ${deg(robot.start.heading)} deg before running this.`);
+  lines.push(`// ${robot.name} -- field coordinates, inches.`);
+  lines.push(`// Tell the localizer where the robot is placed:`);
+  lines.push(`//   .startPose(new Pose2d(${num(sp.x)}, ${num(sp.y)}, `
+    + `Math.toRadians(${deg(robot.start.heading)})))`);
   lines.push(`// Profile: ${robot.maxVel} in/s, ${robot.maxAccel} in/s^2 accel, `
     + `${robot.maxDecel} in/s^2 decel`
     + (robot.delay > 0 ? `, after a ${robot.delay}s delay` : "") + ".");
@@ -2137,19 +2193,19 @@ function toPointsArray(robot) {
   const c = cacheOf(robot);
   const steps = 100;
   for (let i = 0; i <= steps; i++) {
-    const local = localPoseAtArcLength(robot, c.total * i / steps);
-    rows.push(`  {${num(local.x)}, ${num(local.y)}, ${num(local.heading)}}`);
+    const p = localPoseAtArcLength(robot, c.total * i / steps);
+    rows.push(`  {${num(p.x)}, ${num(p.y)}, ${num(p.heading)}}`);
   }
-  return `// ${robot.name}: {x, y, headingRad}, start-relative inches\n`
+  return `// ${robot.name}: {x, y, headingRad}, field-coordinate inches\n`
     + `double[][] points = {\n${rows.join(",\n")}\n};`;
 }
 
 function toJson() {
   return JSON.stringify({
     format: "verniteyaku-alliance-plan",
-    version: 2,
+    version: 3,
     units: "inches",
-    frame: "path points are start-relative; start poses and obstacles are field coordinates",
+    frame: "everything is field coordinates: origin at field centre, heading CCW from +X",
     margin: S.margin,
     robotCount: S.robotCount,
     field: S.field.imageDataUrl && S.field.imageDataUrl.length < 2_000_000
@@ -2257,12 +2313,30 @@ function applyPlan(data) {
   }
 
   S.robotCount = data.robotCount || data.robots.length;
+
+  // Plans written before version 3 stored path points relative to the robot's
+  // start. Lift them into field coordinates on load rather than silently
+  // reading them as absolute, which would drop every path near the origin.
+  const legacyStartRelative = !data.version || data.version < 3;
+
   S.robots = data.robots.map((r, i) => {
+    const startHeading = r.start.headingRad;
+    const lift = p => {
+      if (!legacyStartRelative) return { x: p.x, y: p.y };
+      const rot = rotate(p.x, p.y, startHeading);
+      return {
+        x: Math.round((r.start.x + rot.x) * 1000) / 1000,
+        y: Math.round((r.start.y + rot.y) * 1000) / 1000
+      };
+    };
+    const liftAngle = a => legacyStartRelative ? normalizeAngle(a + startHeading) : a;
+
     const robot = makeRobot(
       r.name || `Robot ${i + 1}`,
       i === 0 ? "#f2734d" : "#4dc3f2",
-      { x: r.start.x, y: r.start.y, heading: r.start.headingRad },
-      r.segments.map(s => seg(s.points, s.headingMode, s.headingA, s.headingB,
+      { x: r.start.x, y: r.start.y, heading: startHeading },
+      r.segments.map(s => seg(s.points.map(lift), s.headingMode,
+                              liftAngle(s.headingA), liftAngle(s.headingB),
                               s.maxVel, s.waitAfter)));
     robot.length = r.footprint.length;
     robot.width = r.footprint.width;

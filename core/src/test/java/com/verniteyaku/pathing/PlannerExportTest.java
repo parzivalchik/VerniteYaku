@@ -1,6 +1,8 @@
 package com.verniteyaku.pathing;
 
 import com.verniteyaku.pathing.control.ConstrainedProfile;
+import com.verniteyaku.pathing.geometry.FieldCoordinates;
+import com.verniteyaku.pathing.geometry.Pose2d;
 import com.verniteyaku.pathing.paths.BezierCurve;
 import com.verniteyaku.pathing.paths.BezierLine;
 import com.verniteyaku.pathing.paths.PathBuilder;
@@ -27,13 +29,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PlannerExportTest {
 
     @Test
-    void exportedRobot1PathCompilesAndMatchesThePlannersGeometry() {
+    void exportedRobot1PathCompilesAndIsInFieldCoordinates() {
         // --- pasted from the planner, unedited -----------------------------
+        // Robot 1 -- field coordinates, inches.
+        // Tell the localizer where the robot is placed:
+        //   .startPose(new Pose2d(-60.000, -36.000, Math.toRadians(0.00)))
         PathChain robot1 = new PathBuilder()
-                .addPath(new BezierLine(new Point(0.000, 0.000), new Point(36.000, 0.000)))
+                .addPath(new BezierLine(new Point(-60.000, -36.000),
+                        new Point(-24.000, -36.000)))
                 .setTangentHeadingInterpolation()
-                .addPath(new BezierCurve(new Point(36.000, 0.000), new Point(54.000, 0.000),
-                        new Point(60.000, 24.000)))
+                .addPath(new BezierCurve(new Point(-24.000, -36.000),
+                        new Point(-6.000, -36.000), new Point(0.000, -12.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(0.00), Math.toRadians(90.00))
                 .build();
         // -------------------------------------------------------------------
@@ -41,24 +47,40 @@ class PlannerExportTest {
         assertEquals(2, robot1.size());
         assertEquals(36.0, robot1.getSegment(0).length(), 1e-3);
 
-        // The planner reported a 2.58 s duration for this chain at 40 in/s with
-        // 50/60 accel/decel. That is only reproducible if the total length agrees.
-        assertEquals(0.0, robot1.startState().point.x, 1e-9);
-        assertEquals(60.0, robot1.endState().point.x, 1e-3);
-        assertEquals(24.0, robot1.endState().point.y, 1e-3);
+        // The whole point of the frame change: these are absolute positions, so
+        // the chain starts where the robot is placed rather than at (0, 0).
+        assertEquals(-60.0, robot1.startState().point.x, 1e-3);
+        assertEquals(-36.0, robot1.startState().point.y, 1e-3);
+        assertEquals(0.0, robot1.endState().point.x, 1e-3);
+        assertEquals(-12.0, robot1.endState().point.y, 1e-3);
 
         assertEquals(0.0, robot1.stateAtSegment(1, 0).heading, 1e-9);
         assertEquals(Math.PI / 2, robot1.stateAtSegment(1, 1).heading, 1e-9);
     }
 
     @Test
+    void theExportedStartPoseIsTheChainsOwnFirstPoint() {
+        // The planner derives the start position from the path, so a pasted
+        // startPose and the chain's first point cannot disagree.
+        Pose2d startPose = new Pose2d(-60.000, -36.000, Math.toRadians(0.00));
+
+        PathChain robot1 = new PathBuilder()
+                .addPath(new BezierLine(new Point(-60.000, -36.000),
+                        new Point(-24.000, -36.000)))
+                .build();
+
+        assertEquals(0.0, robot1.startState().point.distanceTo(startPose.position), 1e-6);
+    }
+
+    @Test
     void exportedRobot2PathCompilesAndIsContinuous() {
         // --- pasted from the planner, unedited -----------------------------
         PathChain robot2 = new PathBuilder()
-                .addPath(new BezierLine(new Point(0.000, 0.000), new Point(40.000, 0.000)))
+                .addPath(new BezierLine(new Point(60.000, 36.000),
+                        new Point(20.000, 36.000)))
                 .setTangentHeadingInterpolation()
-                .addPath(new BezierCurve(new Point(40.000, 0.000), new Point(58.000, 0.000),
-                        new Point(64.000, -20.000)))
+                .addPath(new BezierCurve(new Point(20.000, 36.000),
+                        new Point(2.000, 36.000), new Point(-4.000, 56.000)))
                 .setTangentHeadingInterpolation()
                 .build();
         // -------------------------------------------------------------------
@@ -75,13 +97,30 @@ class PlannerExportTest {
     }
 
     @Test
+    void anExportedPlanStaysInsideTheFieldWalls() {
+        // Only checkable at all because the coordinates are absolute.
+        PathChain robot1 = new PathBuilder()
+                .addPath(new BezierLine(new Point(-60.000, -36.000),
+                        new Point(-24.000, -36.000)))
+                .addPath(new BezierCurve(new Point(-24.000, -36.000),
+                        new Point(-6.000, -36.000), new Point(0.000, -12.000)))
+                .build();
+
+        for (double s = 0; s <= robot1.length(); s += 1.0) {
+            assertTrue(FieldCoordinates.contains(robot1.stateAtArcLength(s).toPose(), 17, 17),
+                    "a 17-inch robot should fit at s=" + s);
+        }
+    }
+
+    @Test
     void anExportWithAPerSegmentSpeedCapCompilesAndApplies() {
         // --- pasted from the planner, unedited -----------------------------
         PathChain robot1 = new PathBuilder()
-                .addPath(new BezierLine(new Point(0.000, 0.000), new Point(36.000, 0.000)))
+                .addPath(new BezierLine(new Point(-60.000, -36.000),
+                        new Point(-24.000, -36.000)))
                 .setTangentHeadingInterpolation()
-                .addPath(new BezierCurve(new Point(36.000, 0.000), new Point(54.000, 0.000),
-                        new Point(60.000, 24.000)))
+                .addPath(new BezierCurve(new Point(-24.000, -36.000),
+                        new Point(-6.000, -36.000), new Point(0.000, -12.000)))
                 .setLinearHeadingInterpolation(Math.toRadians(0.00), Math.toRadians(90.00))
                 .setMaxVelocity(8.000)
                 .build();
@@ -108,13 +147,13 @@ class PlannerExportTest {
         // One of each, so a renamed interpolator method is caught here rather
         // than by a team pasting the export in at a competition.
         PathChain chain = new PathBuilder()
-                .addPath(new BezierLine(new Point(0, 0), new Point(10, 0)))
+                .addPath(new BezierLine(new Point(-40, 0), new Point(-30, 0)))
                 .setTangentHeadingInterpolation()
-                .addPath(new BezierLine(new Point(10, 0), new Point(20, 0)))
+                .addPath(new BezierLine(new Point(-30, 0), new Point(-20, 0)))
                 .setReverseTangentHeadingInterpolation()
-                .addPath(new BezierLine(new Point(20, 0), new Point(30, 0)))
+                .addPath(new BezierLine(new Point(-20, 0), new Point(-10, 0)))
                 .setConstantHeadingInterpolation(Math.toRadians(45.00))
-                .addPath(new BezierLine(new Point(30, 0), new Point(40, 0)))
+                .addPath(new BezierLine(new Point(-10, 0), new Point(0, 0)))
                 .setLinearHeadingInterpolation(Math.toRadians(0.00), Math.toRadians(90.00))
                 .build();
 

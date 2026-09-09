@@ -2,27 +2,45 @@
 
 ## Coordinates
 
-**The frame is start-relative.** The origin is wherever the robot is sitting when
-the follower is constructed. `+x` points out its front at that instant, `+y` out
-its left, and heading is CCW-positive radians from that initial forward
-direction. Every auto begins at exactly `new Pose2d(0, 0, 0)`.
+**The frame is the field.** Origin at the centre of the field, `+x` and `+y` in
+the floor plane, heading CCW-positive radians from `+x`. The field is 144 inches
+square, so every coordinate is in [-72, +72].
 
-So `new Point(24, 0)` means *two feet ahead of where I started* — not a fixed
-spot on the field. Move the robot a tile over and the whole path moves with it.
-The library never knows where the field is.
+So `new Point(-36, -36)` is a fixed spot on the field, and it means the same
+thing whichever tile the robot starts on. This is the same convention the FTC
+SDK's AprilTag support uses, which is what lets a tag observation drop straight
+into the pose filter.
 
-### Getting field coordinates back
+`FieldCoordinates` holds the constants and a few helpers — field size, tile size,
+`contains()` for checking a plan fits inside the walls, and `rotated180()` for
+mirroring a plan to the other alliance.
 
-Hold the start pose yourself and compose:
+### You must tell it where the robot starts
+
+Absolute coordinates cannot be inferred from encoders, so the localizer needs a
+`startPose`:
 
 ```java
-Pose2d startInField = new Pose2d(-60, -36, 0);       // you decide this
-Pose2d fieldPose = startInField.transformBy(follower.getPose());
+FusedLocalizer localizer = FusedLocalizer.builder(drivetrain, Clock.system())
+        .startPose(new Pose2d(-60, -36, 0))    // where the robot is placed
+        .headingSource(new ImuHeadingSource(imu))
+        .build();
 ```
 
-`transformBy` and `relativeTo` are exact inverses, so you can go either way. That
-one line is the only place the two frames meet — there is no converter layer to
-keep in sync.
+Get it wrong and every path in the auto is offset by the same amount, which looks
+like the robot *driving the right shape in the wrong place*. It is the first
+thing to check when an auto is uniformly off.
+
+### The one axis question
+
+Origin and handedness are fixed. **Which physical wall `+x` points at is a
+choice**, and it has to match your AprilTag layout and IMU zero. The library
+deliberately does not bake in a season-specific wall mapping.
+
+Confirm it once on a real field: place the robot at a known spot facing a known
+wall, read `getPose()`, and check the signs. If `+x` points at the opposite wall
+from what you assumed, use `FieldCoordinates.rotated180()` on the whole plan
+rather than negating coordinates one at a time.
 
 ---
 
@@ -50,8 +68,8 @@ you construct yourself carries its own unit from `Point.of(...)`.
 ## Segments
 
 ```java
-new BezierLine(new Point(0, 0), new Point(24, 0))
-new BezierCurve(new Point(24, 0), new Point(36, 12), new Point(36, 30))
+new BezierLine(new Point(-60, -36), new Point(-36, -36))
+new BezierCurve(new Point(-36, -36), new Point(-24, -24), new Point(-24, -6))
 ```
 
 `BezierLine` is a straight segment — a degree-1 Bezier. `BezierCurve` takes three
@@ -86,13 +104,16 @@ of stopping and restarting at each junction.
 
 ```java
 PathChain chain = new PathBuilder()
-        .addPath(new BezierLine(new Point(0, 0), new Point(24, 0)))
+        .addPath(new BezierLine(new Point(-60, -36), new Point(-36, -36)))
         .setLinearHeadingInterpolation(0, Math.toRadians(90))
-        .addPath(new BezierCurve(new Point(24, 0), new Point(36, 12), new Point(36, 30)))
+        .addPath(new BezierCurve(new Point(-36, -36), new Point(-24, -24), new Point(-24, -6)))
         .setConstantHeadingInterpolation(Math.toRadians(90))
         .setMaxVelocity(15)
         .build();
 ```
+
+Make the first point the robot's starting position, so it does not have to drive
+onto the path before it can follow it.
 
 Each `set...` call applies to the path most recently added.
 
@@ -174,7 +195,8 @@ un-driven half the auto.
 `tools/alliance-planner/index.html` — a standalone browser tool, no build step.
 
 Drag path chains, scrub a timeline that runs the same profile the follower does,
-and export ready-to-paste `pathBuilder()` code in this same start-relative frame.
+and export ready-to-paste `pathBuilder()` code in the same field frame, so the
+numbers on the canvas are the numbers you paste.
 
 Plan for **one robot** — a visual path editor for your own auto — or **two**,
 which additionally checks both alliance partners' paths against each other.

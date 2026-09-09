@@ -4,7 +4,11 @@ import com.verniteyaku.pathing.geometry.Vector2d;
 import com.verniteyaku.pathing.units.DistanceUnit;
 
 /**
- * A control point for a Bezier path, in the start-relative frame.
+ * A control point for a Bezier path, in field coordinates.
+ *
+ * <p>{@code new Point(24, 0)} is a fixed spot on the field, two feet from centre
+ * along +X -- not an offset from wherever the robot happens to start. See {@link
+ * com.verniteyaku.pathing.geometry.FieldCoordinates}.
  *
  * <p>The bare {@code (x, y)} constructor takes inches. To work in another unit,
  * use {@link #of(double, double, DistanceUnit)} -- the value is converted once,
@@ -14,7 +18,7 @@ public final class Point {
 
     private final Vector2d vector;
 
-    /** A point in inches. */
+    /** A point in field-coordinate inches. */
     public Point(double x, double y) {
         this.vector = new Vector2d(x, y);
     }

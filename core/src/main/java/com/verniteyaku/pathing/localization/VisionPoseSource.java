@@ -9,7 +9,7 @@ import com.verniteyaku.pathing.geometry.Pose2d;
  * {@link FusedLocalizer} that consumes it are finished and tested against
  * scripted observations; what is deliberately not built is the AprilTag half --
  * camera calibration, tag-field layout, and turning a detection into a
- * start-relative pose. That is Phase 3 work and is listed as such in the README.
+ * field-coordinate pose. That is listed as unbuilt in the README.
  *
  * <p>It exists now because the shape of this interface constrains the filter's
  * design, and getting that wrong would mean rewriting the fusion layer later. In
@@ -18,13 +18,18 @@ import com.verniteyaku.pathing.geometry.Pose2d;
  * remotely the same measurement, and a fusion layer that cannot tell them apart
  * has no way to behave sensibly.
  *
+ * <p>Field coordinates make the rest of this markedly simpler than the old
+ * start-relative frame did: tag positions are fixed and published, so nothing in
+ * the pipeline needs to know where the robot began.
+ *
  * <h2>Implementing this later</h2>
  * <ul>
  *   <li>Return {@code null} from {@link #getObservation()} whenever there is no
  *       fresh detection. The localizer skips the update; it never blocks.</li>
- *   <li>Report the pose in the <b>start-relative</b> frame, not the field frame.
- *       That means the implementation has to know where the robot started, which
- *       is a decision for the OpMode, not for this library.</li>
+ *   <li>Report the pose in <b>field coordinates</b>. This is the easy direction:
+ *       a tag's field position is fixed and published, so a detection converts
+ *       straight into an absolute pose without any knowledge of where the robot
+ *       started.</li>
  *   <li>Scale the variances with observed range and viewing angle. Constant
  *       variances would defeat the purpose of fusing at all.</li>
  * </ul>
@@ -33,7 +38,7 @@ public interface VisionPoseSource {
 
     /** One absolute pose observation and how much to trust it. */
     final class Observation {
-        /** The observed pose, start-relative. */
+        /** The observed pose, in field coordinates. */
         public final Pose2d pose;
         /** {x, y, heading} variances: inches squared and radians squared. */
         public final double[] variance;

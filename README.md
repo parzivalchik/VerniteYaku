@@ -30,6 +30,7 @@ MecanumDrivetrain drivetrain = MecanumDrivetrain.builder(DistanceUnit.INCH)
         .build();
 
 FusedLocalizer localizer = FusedLocalizer.builder(drivetrain, Clock.system())
+        .startPose(new Pose2d(-60, -36, 0))     // where the robot is placed
         .headingSource(new ImuHeadingSource(hardwareMap.get(IMU.class, "imu")))
         .build();
 
@@ -43,9 +44,9 @@ FollowerConstants constants = FollowerConstants.builder(DistanceUnit.INCH)
 PathFollower follower = new PathFollower(drivetrain, localizer, constants);
 
 PathChain chain = new PathBuilder()
-        .addPath(new BezierLine(new Point(0, 0), new Point(24, 0)))
+        .addPath(new BezierLine(new Point(-60, -36), new Point(-36, -36)))
         .setLinearHeadingInterpolation(0, Math.toRadians(90))
-        .addPath(new BezierCurve(new Point(24, 0), new Point(36, 12), new Point(36, 30)))
+        .addPath(new BezierCurve(new Point(-36, -36), new Point(-24, -24), new Point(-24, -6)))
         .setConstantHeadingInterpolation(Math.toRadians(90))
         .build();
 
@@ -81,20 +82,38 @@ API reference: `./gradlew :core:javadoc` &rarr; `core/build/docs/javadoc/index.h
 
 ## Conventions
 
-**Coordinate frame — start-relative.** The origin is wherever the robot is
-sitting when the follower is constructed. +x points out its front at that
-instant, +y out its left, and heading is CCW-positive radians from that initial
-forward direction. Every auto begins at exactly `new Pose2d(0, 0, 0)`.
+**Coordinate frame — the field.** Origin at the centre of the field, +x and +y in
+the floor plane, heading CCW-positive radians from +x. The field is 144 inches
+square, so coordinates run −72 to +72.
 
-So `new Point(24, 0)` means "two feet ahead of where I started" — not a fixed
-spot on the field. Move the robot on the tile and the whole path moves with it.
-The library never knows where the field is.
+`new Point(-36, -36)` is a fixed spot, and it means the same thing whichever tile
+the robot starts on. This is the convention the FTC SDK's AprilTag support uses,
+which is what lets a tag observation drop straight into the pose filter.
 
-If you want field coordinates, keep the start pose yourself and compose:
+The flip side: absolute coordinates cannot be inferred from encoders, so the
+localizer has to be told where the robot is placed.
 
 ```java
-Pose2d fieldPose = startPoseInField.transformBy(follower.getPose());
+FusedLocalizer localizer = FusedLocalizer.builder(drivetrain, Clock.system())
+        .startPose(new Pose2d(-60, -36, 0))
+        .headingSource(new ImuHeadingSource(imu))
+        .build();
 ```
+
+Get that wrong and every path is offset by the same amount — the robot drives the
+right shape in the wrong place. It is the first thing to check when an auto is
+uniformly off.
+
+`FieldCoordinates` holds the constants and helpers: field and tile size,
+`contains()` to check a plan fits inside the walls, `rotated180()` to mirror a
+plan to the other alliance.
+
+**One axis question to settle on a real field.** Origin and handedness are fixed;
+*which physical wall +x points at* is a choice that must match your AprilTag
+layout and IMU zero. No season-specific mapping is baked in. Check it once —
+place the robot at a known spot, read `getPose()`, confirm the signs — and if +x
+points the other way, `FieldCoordinates.rotated180()` the whole plan rather than
+negating coordinates one at a time.
 
 **Units — your choice, converted once.** Everything is stored internally in
 inches, but you never have to work in them. Every builder takes a
@@ -127,7 +146,7 @@ tools/      The alliance collision planner (browser tool, no build step).
 The split between `core` and `ftc` is what makes `./gradlew :core:test` run on
 any laptop with a JDK, with no Android SDK, no emulator, and no robot. Every
 Bezier, every kinematics conversion, and the follower itself are exercised that
-way — 233 tests, all headless.
+way — 254 tests, all headless.
 
 `:ftc` and `:TeamCode` are only included in the build when an Android SDK is
 actually present, so cloning this repo and running the tests works on a machine
@@ -254,9 +273,13 @@ what feeds the follower's authority scaling.
 `VisionPoseSource` is a **stub**. The interface and the `FusedLocalizer` plumbing
 that consumes it are finished and tested against scripted observations; the
 AprilTag half — camera calibration, tag-field layout, turning a detection into a
-start-relative pose — is Phase 3. It exists now because the shape of that
-interface constrains the filter's design, and an observation must carry its own
-variance for any of the above to work.
+field pose — is not built. It exists now because the shape of that interface
+constrains the filter's design, and an observation must carry its own variance for
+any of the above to work.
+
+Field coordinates make the remaining work markedly easier than the old
+start-relative frame did: tag positions are fixed and published, so nothing in
+the pipeline needs to know where the robot began.
 
 ---
 
@@ -487,12 +510,14 @@ usually the collision people miss.
 
 ### Coordinates match the library
 
-Each robot's start pose is placed in field coordinates, and its path is stored
-relative to that start — the frame `PathChain` and `Pose2d` actually use. The
-Java export emits ready-to-paste `pathBuilder()` code in that frame, with the
-field start pose as a comment, because the library has no concept of where the
-field is and generating code that implied otherwise would be a lie you would
-then have to debug.
+Everything is field coordinates, the same frame `PathChain` and `Pose2d` use, so
+the numbers on the canvas are the numbers you paste. A robot's start position
+*is* its path's first point, so the two cannot drift apart and describe a robot
+placed somewhere its own auto does not begin.
+
+The Java export emits ready-to-paste `pathBuilder()` code plus a commented
+`.startPose(...)` line for the localizer — that belongs on the localizer, not the
+path.
 
 `PlannerExportTest` compiles a verbatim copy of that export, so a renamed
 builder method breaks the build rather than breaking someone's auto at a

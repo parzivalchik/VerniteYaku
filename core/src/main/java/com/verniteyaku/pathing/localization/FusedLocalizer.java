@@ -44,6 +44,9 @@ public final class FusedLocalizer implements Localizer {
         this.visionSource = b.visionSource;
         this.headingVariance = b.headingVariance;
         this.fuser = b.fuser != null ? b.fuser : EKFPoseFuser.builder().build();
+        // The filter has to begin at the robot's real field pose; absolute
+        // coordinates cannot be inferred from the encoders.
+        this.fuser.reset(b.startPose);
     }
 
     public static Builder builder(Drivetrain drivetrain, Clock clock) {
@@ -56,6 +59,7 @@ public final class FusedLocalizer implements Localizer {
         private HeadingSource headingSource;
         private VisionPoseSource visionSource;
         private EKFPoseFuser fuser;
+        private Pose2d startPose = Pose2d.ZERO;
         private double headingVariance = 1e-4; // about 0.6 degrees of sigma
 
         private Builder(Drivetrain drivetrain, Clock clock) {
@@ -64,6 +68,22 @@ public final class FusedLocalizer implements Localizer {
             }
             this.drivetrain = drivetrain;
             this.clock = clock;
+        }
+
+        /**
+         * Where the robot actually is when the auto begins, in field
+         * coordinates. Defaults to the field centre facing +X, which is almost
+         * certainly not where your robot is.
+         *
+         * <p>Get this wrong and every path is offset by the same error -- the
+         * robot drives the right shape in the wrong place.
+         */
+        public Builder startPose(Pose2d startPose) {
+            if (startPose == null) {
+                throw new IllegalArgumentException("startPose must be non-null");
+            }
+            this.startPose = startPose;
+            return this;
         }
 
         /** The IMU. Optional, but without it this is just odometry with extra steps. */
@@ -111,7 +131,8 @@ public final class FusedLocalizer implements Localizer {
             lastWheelPositions = positions.clone();
             lastTime = now;
             if (headingSource != null) {
-                // The gyro's reading at the first update defines heading zero.
+                // Calibrate the gyro against the configured start heading, so
+                // its readings land in field coordinates.
                 headingOffset = headingSource.getHeadingRadians() - fuser.getPose().heading;
             }
             return;

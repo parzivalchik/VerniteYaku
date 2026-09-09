@@ -5,24 +5,23 @@ import com.verniteyaku.pathing.units.DistanceUnit;
 /**
  * A robot pose: a position plus a heading.
  *
- * <p><b>Frame.</b> Poses are expressed in the <i>start-relative</i> frame: the
- * origin is wherever the robot was sitting when the follower was constructed, +X
- * points out the robot's front at that instant, +Y points out its left, and
- * heading is CCW-positive radians from that initial forward direction. Every auto
- * therefore starts at exactly {@code new Pose2d(0, 0, 0)}.
+ * <p><b>Frame.</b> Poses are absolute <i>field</i> coordinates: the origin is the
+ * centre of the field, +X and +Y lie in the floor plane, and heading is
+ * CCW-positive radians from +X. See {@link FieldCoordinates} for the full
+ * convention and the one axis question you have to settle on a real field.
  *
- * <p>Nothing in the library knows about the physical field. If you later want
- * field coordinates, hold the start pose in the field frame yourself and compose:
- * {@code fieldPose = startPoseInField.transformBy(followerPose)}. That mapping is
- * the only place the two frames meet.
+ * <p>So a pose means the same thing whichever tile the robot started on, and
+ * {@code new Pose2d(24, 0, 0)} is a fixed spot two feet from centre. The cost is
+ * that the library must be told where the robot begins -- absolute coordinates
+ * cannot be inferred from encoders. Give your localizer a {@code startPose}.
  */
 public final class Pose2d {
 
     public static final Pose2d ZERO = new Pose2d(0, 0, 0);
 
-    /** Position, canonical inches, start-relative. */
+    /** Position in field coordinates, canonical inches. */
     public final Vector2d position;
-    /** Heading, radians CCW, start-relative. */
+    /** Heading, radians CCW from +X. */
     public final double heading;
 
     public Pose2d(Vector2d position, double heading) {
@@ -71,8 +70,12 @@ public final class Pose2d {
 
     /**
      * Composes {@code other} onto this pose, treating {@code other} as a pose
-     * expressed in this pose's own frame. Used to lift a start-relative pose into
-     * some outer frame.
+     * expressed in this pose's own frame.
+     *
+     * <p>Paths are already in field coordinates, so this is no longer needed to
+     * place them. It is still the right tool for offsets that are genuinely
+     * robot-relative -- where a mechanism sits on the chassis, or "two feet
+     * further along whatever way I am currently facing".
      */
     public Pose2d transformBy(Pose2d other) {
         return new Pose2d(position.plus(other.position.rotated(heading)),

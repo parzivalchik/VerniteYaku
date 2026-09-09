@@ -228,7 +228,7 @@ public final class PathFollower implements Follower {
 
     /**
      * The corrective velocity that pulls the robot back onto the profile's
-     * setpoint, in the start-relative frame.
+     * setpoint, in field coordinates.
      *
      * <p>This is the hybrid part. The PID underneath is the same one a pure
      * profile follower would use, and while the robot is tracking well that is

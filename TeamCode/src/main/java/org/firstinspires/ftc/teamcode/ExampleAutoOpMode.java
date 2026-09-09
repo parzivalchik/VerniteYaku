@@ -5,6 +5,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.IMU;
 import com.verniteyaku.pathing.control.FollowerConstants;
 import com.verniteyaku.pathing.follower.PathFollower;
+import com.verniteyaku.pathing.geometry.Pose2d;
 import com.verniteyaku.pathing.ftc.ImuHeadingSource;
 import com.verniteyaku.pathing.ftc.MecanumDrivetrain;
 import com.verniteyaku.pathing.localization.FusedLocalizer;
@@ -24,10 +25,10 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
  * them with your own -- especially the motor names, which must match your robot
  * configuration exactly.
  *
- * <p>Remember the coordinate frame: the origin is wherever the robot is sitting
- * when {@code start()} runs, +x is out its front and +y out its left. So
- * {@code (24, 0)} means "two feet forward of where I started", not any
- * particular spot on the field.
+ * <p>Remember the coordinate frame: coordinates are absolute field positions,
+ * origin at the centre of the field. So {@code (-36, -36)} is a fixed spot, and
+ * the library has to be told where the robot actually starts -- that is the
+ * {@code startPose} below. See {@code FieldCoordinates}.
  */
 @Autonomous(name = "VerniteYaku Example Auto", group = "VerniteYaku")
 public class ExampleAutoOpMode extends LinearOpMode {
@@ -52,10 +53,16 @@ public class ExampleAutoOpMode extends LinearOpMode {
         // point if you have not already; the library takes it as it finds it.
         ImuHeadingSource heading = new ImuHeadingSource(imu);
 
+        // Where the robot is actually placed, in field coordinates. Measure this
+        // once against the tiles; get it wrong and the whole auto is offset by
+        // the same amount.
+        Pose2d startPose = new Pose2d(-60, -36, Math.toRadians(0));
+
         // Encoders predict, the IMU corrects. Swap in DriveEncoderLocalizer if
         // you want plain dead reckoning with no filtering.
         FusedLocalizer localizer = FusedLocalizer.builder(
                         drivetrain, com.verniteyaku.pathing.control.Clock.system())
+                .startPose(startPose)
                 .headingSource(heading)
                 .build();
 
@@ -85,13 +92,15 @@ public class ExampleAutoOpMode extends LinearOpMode {
 
         // --- The path -------------------------------------------------------
 
+        // Absolute field coordinates. The first point is where the robot starts,
+        // so it does not have to drive onto the path before following it.
         PathChain chain = new PathBuilder()
-                // Straight out two feet, turning to face left as we go.
-                .addPath(new BezierLine(new Point(0, 0), new Point(24, 0)))
+                // Straight out two feet, turning to face field +Y as we go.
+                .addPath(new BezierLine(new Point(-60, -36), new Point(-36, -36)))
                 .setLinearHeadingInterpolation(0, Math.toRadians(90))
-                // Then curve away to the left, holding that heading.
+                // Then curve away, holding that heading.
                 .addPath(new BezierCurve(
-                        new Point(24, 0), new Point(36, 12), new Point(36, 30)))
+                        new Point(-36, -36), new Point(-24, -24), new Point(-24, -6)))
                 .setConstantHeadingInterpolation(Math.toRadians(90))
                 .build();
 

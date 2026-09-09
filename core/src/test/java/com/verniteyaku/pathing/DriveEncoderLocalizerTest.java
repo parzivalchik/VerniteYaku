@@ -63,17 +63,17 @@ class DriveEncoderLocalizerTest {
 
     @Test
     void firstUpdateOnlyEstablishesABaselineAndDoesNotMove() {
-        DriveEncoderLocalizer localizer = new DriveEncoderLocalizer(encoders, clock);
+        DriveEncoderLocalizer localizer = DriveEncoderLocalizer.builder(encoders, clock).build();
         encoders.advance(new double[]{100, 100, 100, 100});
         localizer.update();
 
         assertEquals(0.0, localizer.getPose().getX(), 1e-9,
-                "the first read defines the origin; it must not be integrated");
+                "the first read only establishes a baseline; it must not be integrated");
     }
 
     @Test
     void straightDrivingIntegratesForward() {
-        DriveEncoderLocalizer localizer = new DriveEncoderLocalizer(encoders, clock);
+        DriveEncoderLocalizer localizer = DriveEncoderLocalizer.builder(encoders, clock).build();
         localizer.update();
 
         for (int i = 0; i < 10; i++) {
@@ -89,7 +89,7 @@ class DriveEncoderLocalizerTest {
 
     @Test
     void strafingIntegratesSideways() {
-        DriveEncoderLocalizer localizer = new DriveEncoderLocalizer(encoders, clock);
+        DriveEncoderLocalizer localizer = DriveEncoderLocalizer.builder(encoders, clock).build();
         localizer.update();
 
         for (int i = 0; i < 10; i++) {
@@ -104,7 +104,7 @@ class DriveEncoderLocalizerTest {
 
     @Test
     void velocityIsReportedFromTheTimestep() {
-        DriveEncoderLocalizer localizer = new DriveEncoderLocalizer(encoders, clock);
+        DriveEncoderLocalizer localizer = DriveEncoderLocalizer.builder(encoders, clock).build();
         localizer.update();
 
         encoders.advance(new double[]{0.2, 0.2, 0.2, 0.2});
@@ -120,7 +120,8 @@ class DriveEncoderLocalizerTest {
         // The gyro must win.
         double[] gyro = {0.0};
         DriveEncoderLocalizer localizer =
-                new DriveEncoderLocalizer(encoders, clock, () -> gyro[0]);
+                DriveEncoderLocalizer.builder(encoders, clock)
+                        .headingSource(() -> gyro[0]).build();
         localizer.update();
 
         for (int i = 0; i < 10; i++) {
@@ -133,28 +134,81 @@ class DriveEncoderLocalizerTest {
     }
 
     @Test
-    void headingSourceIsZeroedAtTheFirstUpdateSoTheFrameIsStartRelative() {
-        // A gyro that happens to read 1.2 rad at init still defines heading zero.
+    void theGyroIsCalibratedAgainstTheConfiguredStartHeading() {
+        // A gyro reading 1.2 rad at init, on a robot placed facing field +Y.
+        // The raw gyro value is arbitrary; what matters is that the pose comes
+        // out in field coordinates.
         double[] gyro = {1.2};
-        DriveEncoderLocalizer localizer =
-                new DriveEncoderLocalizer(encoders, clock, () -> gyro[0]);
+        DriveEncoderLocalizer localizer = DriveEncoderLocalizer.builder(encoders, clock)
+                .startPose(new Pose2d(-60, -36, Math.PI / 2))
+                .headingSource(() -> gyro[0])
+                .build();
         localizer.update();
 
-        assertEquals(0.0, localizer.getPose().getHeading(), 1e-9);
+        assertEquals(Math.PI / 2, localizer.getPose().getHeading(), 1e-9,
+                "should report the configured field heading, not the gyro's raw value");
 
-        gyro[0] = 1.2 + Math.PI / 2;
+        gyro[0] = 1.2 + Math.PI / 4;
         encoders.advance(new double[]{0, 0, 0, 0});
         clock.advance(0.02);
         localizer.update();
 
-        assertEquals(Math.PI / 2, localizer.getPose().getHeading(), 1e-9);
+        assertEquals(Math.PI / 2 + Math.PI / 4, localizer.getPose().getHeading(), 1e-9,
+                "a quarter turn of the gyro is a quarter turn in the field frame");
+    }
+
+    @Test
+    void posesComeOutInFieldCoordinatesFromTheConfiguredStart() {
+        // Placed two feet left of centre, then driven forward ten inches: the
+        // pose must be absolute, not (10, 0).
+        DriveEncoderLocalizer localizer = DriveEncoderLocalizer.builder(encoders, clock)
+                .startPose(new Pose2d(-24, 0, 0))
+                .build();
+        localizer.update();
+
+        for (int i = 0; i < 10; i++) {
+            encoders.advance(new double[]{1, 1, 1, 1});
+            clock.advance(0.02);
+            localizer.update();
+        }
+
+        assertEquals(-14.0, localizer.getPose().getX(), 1e-9);
+        assertEquals(0.0, localizer.getPose().getY(), 1e-9);
+    }
+
+    @Test
+    void aStartHeadingRotatesSubsequentTravelIntoTheFieldFrame() {
+        // Facing field +Y at the start, so driving "forward" moves in +Y.
+        DriveEncoderLocalizer localizer = DriveEncoderLocalizer.builder(encoders, clock)
+                .startPose(new Pose2d(0, -48, Math.PI / 2))
+                .build();
+        localizer.update();
+
+        for (int i = 0; i < 12; i++) {
+            encoders.advance(new double[]{1, 1, 1, 1});
+            clock.advance(0.02);
+            localizer.update();
+        }
+
+        assertEquals(0.0, localizer.getPose().getX(), 1e-9);
+        assertEquals(-36.0, localizer.getPose().getY(), 1e-9);
+    }
+
+    @Test
+    void withNoStartPoseTheRobotIsAssumedToBeAtTheFieldCentre() {
+        DriveEncoderLocalizer localizer =
+                DriveEncoderLocalizer.builder(encoders, clock).build();
+        localizer.update();
+        assertEquals(0.0, localizer.getPose().getX(), 1e-9);
+        assertEquals(0.0, localizer.getPose().getY(), 1e-9);
     }
 
     @Test
     void setPoseRebasesBothPositionAndHeadingOffset() {
         double[] gyro = {0.5};
         DriveEncoderLocalizer localizer =
-                new DriveEncoderLocalizer(encoders, clock, () -> gyro[0]);
+                DriveEncoderLocalizer.builder(encoders, clock)
+                        .headingSource(() -> gyro[0]).build();
         localizer.update();
 
         localizer.setPose(new Pose2d(10, -5, Math.PI));
@@ -171,7 +225,8 @@ class DriveEncoderLocalizerTest {
     void drivingInACircleReturnsRoughlyToTheStart() {
         double[] heading = {0.0};
         DriveEncoderLocalizer localizer =
-                new DriveEncoderLocalizer(encoders, clock, () -> heading[0]);
+                DriveEncoderLocalizer.builder(encoders, clock)
+                        .headingSource(() -> heading[0]).build();
         localizer.update();
 
         // Forward-and-turn in small steps, all the way around.

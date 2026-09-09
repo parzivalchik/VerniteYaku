@@ -1,6 +1,6 @@
 # Bring-up: getting VerniteYaku onto a real robot
 
-**None of this library has run on hardware.** 233 tests pass, but they are
+**None of this library has run on hardware.** 254 tests pass, but they are
 headless and the simulation is kinematic — no motor dynamics, no battery sag, no
 wheel slip. They prove the geometry, the control structure and the math converge.
 They do not prove any gain is right for your robot.
@@ -51,8 +51,9 @@ And a strafe, `{-0.3, 0.3, 0.3, -0.3}`:
 - [ ] Robot strafes **left**. If it strafes right, your roller pattern is
       mirrored from the assumed X configuration; swap the front and back pairs.
 
-> Everything downstream assumes +x is forward and +y is left. Nothing else in
-> this checklist will make sense until this step is right.
+> This step is about the **robot's own** axes: +x out its front, +y out its left.
+> That is separate from the field frame, which §4 settles. Nothing else in this
+> checklist will make sense until this step is right.
 
 ---
 
@@ -96,12 +97,27 @@ robot's outside dimensions.
 Run a `DriveEncoderLocalizer` (start simple; add fusion after) and print the
 pose while you push the robot by hand.
 
-- [ ] Push forward 24 in → pose reads roughly (24, 0, 0).
-- [ ] Push left 24 in → roughly (0, 24, 0).
+**First, settle the axes.** Coordinates are absolute, so this is the step that
+pins down which wall is +x — and everything downstream depends on it.
+
+- [ ] Build the localizer with `.startPose(new Pose2d(0, 0, 0))` and stand the
+      robot at the field centre facing whichever wall you intend to call +x.
+- [ ] Push forward 24 in → pose reads roughly (24, 0, 0). If x went negative,
+      you are facing −x; either turn the robot round or accept that wall as +x
+      and be consistent from here on.
+- [ ] Push left 24 in → roughly (24, 24, 0). If y went the other way, your frame
+      is left-handed relative to this library and headings will come out
+      mirrored — recheck the IMU orientation first.
 - [ ] Rotate 90° CCW in place → heading ≈ π/2, position barely moves.
 - [ ] Push in a closed square back to the start → pose returns to roughly
       (0, 0, 0). Expect a few inches of drift; expect much more if you skipped
       the IMU.
+
+**Then the real start pose.** Put the robot where your auto actually begins,
+measure it against the tiles, and set `.startPose(...)` to that.
+
+- [ ] With the robot placed and the OpMode initialised, `getPose()` reads the
+      pose you measured, before anything moves.
 
 Only once that is clean, switch to `FusedLocalizer` and repeat. It should be at
 least as good. If it is worse, your `headingVariance` is wrong.
@@ -204,6 +220,8 @@ Remember the library takes no action on a stall. Decide what yours should do.
 | Strafes the wrong way | Roller pattern / front-back pair swap (§1) |
 | Drives right distance, wrong scale | `ticksPerRevolution`, `wheelRadius` (§2) |
 | Pose heading drifts fast | IMU orientation, or no `HeadingSource` (§3, §4) |
+| Right shape, wrong place on the field | `startPose` is wrong (§4) |
+| Whole auto mirrored | +x points at the opposite wall — `rotated180()` the plan (§4) |
 | Tracks fine slow, drifts off fast | `kV` too low — wheels saturating (§5) |
 | Never reaches the target, times out | `kS` too low, or `positionTolerance` too tight |
 | Oscillates around the path | `translationalPID` kP too high (§7) |
@@ -217,6 +235,7 @@ Remember the library takes no action on a stall. Decide what yours should do.
 
 - **AprilTags.** `VisionPoseSource` is a tested interface with nothing behind it.
   The `FusedLocalizer` will fold observations in correctly the moment something
-  produces them.
+  produces them — and field coordinates make that straightforward, since tag
+  positions are fixed and published.
 - **Tank and swerve.** The `Kinematics` interface has room; only mecanum exists.
 - **MPC.** Out of scope; the error-scaled reactive term is the design point.

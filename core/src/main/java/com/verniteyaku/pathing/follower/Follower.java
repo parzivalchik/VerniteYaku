@@ -43,7 +43,7 @@ public interface Follower {
     /** Whether a path is still being followed. */
     boolean isBusy();
 
-    /** The current pose estimate, start-relative. */
+    /** The current pose estimate, in field coordinates. */
     Pose2d getPose();
 
     /** Abandons the current path and stops the motors. */

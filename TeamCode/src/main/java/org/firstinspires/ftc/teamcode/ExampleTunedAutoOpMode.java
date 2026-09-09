@@ -9,6 +9,7 @@ import com.verniteyaku.pathing.command.FollowPathCommand;
 import com.verniteyaku.pathing.control.Clock;
 import com.verniteyaku.pathing.control.FollowerConstants;
 import com.verniteyaku.pathing.follower.PathFollower;
+import com.verniteyaku.pathing.geometry.Pose2d;
 import com.verniteyaku.pathing.ftc.FtcTuningStore;
 import com.verniteyaku.pathing.ftc.HubVoltageSource;
 import com.verniteyaku.pathing.ftc.ImuHeadingSource;
@@ -52,7 +53,11 @@ public class ExampleTunedAutoOpMode extends LinearOpMode {
                 .build();
         drivetrain.resetEncoders();
 
+        // Field coordinates, so the robot's real starting spot has to be given.
+        Pose2d startPose = new Pose2d(-60, -36, Math.toRadians(0));
+
         FusedLocalizer localizer = FusedLocalizer.builder(drivetrain, clock)
+                .startPose(startPose)
                 .headingSource(new ImuHeadingSource(hardwareMap.get(IMU.class, "imu")))
                 .build();
 
@@ -115,13 +120,13 @@ public class ExampleTunedAutoOpMode extends LinearOpMode {
         // --- The auto ---------------------------------------------------------
 
         PathChain toScore = new PathBuilder()
-                .addPath(new BezierLine(new Point(0, 0), new Point(24, 0)))
+                .addPath(new BezierLine(new Point(-60, -36), new Point(-36, -36)))
                 .setLinearHeadingInterpolation(0, Math.toRadians(90))
                 .build();
 
         PathChain toPark = new PathBuilder()
                 .addPath(new BezierCurve(
-                        new Point(24, 0), new Point(36, 12), new Point(36, 30)))
+                        new Point(-36, -36), new Point(-24, -24), new Point(-24, -6)))
                 .setConstantHeadingInterpolation(Math.toRadians(90))
                 .build();
 
