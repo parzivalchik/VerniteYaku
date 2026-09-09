@@ -1,6 +1,6 @@
 # Bring-up: getting VerniteYaku onto a real robot
 
-**None of this library has run on hardware.** 272 tests pass, but they are
+**None of this library has run on hardware.** 274 tests pass, but they are
 headless and the simulation is kinematic — no motor dynamics, no battery sag, no
 wheel slip. They prove the geometry, the control structure and the math converge.
 They do not prove any gain is right for your robot.
@@ -23,6 +23,9 @@ reversal at full path speed hits a wall.
       exactly. `frontLeft` is not `front_left`.
 - [ ] `local.properties` has your `sdk.dir`, or `ANDROID_HOME` is set, so
       `./gradlew :ftc:assembleDebug` works.
+- [ ] The FTC SDK pin in `ftc/build.gradle` and `TeamCode/build.gradle` matches
+      what your event will be running. It is on 11.2.1 here; check for newer
+      before a competition.
 
 ---
 

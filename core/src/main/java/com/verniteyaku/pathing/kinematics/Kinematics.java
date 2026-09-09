@@ -34,6 +34,23 @@ public interface Kinematics {
     ChassisSpeeds toChassisSpeeds(double[] wheelVelocities);
 
     /**
+     * The per-wheel accelerations that realise a chassis acceleration.
+     *
+     * <p>The same map as {@link #toWheelVelocities}, and deliberately so: the
+     * kinematics are linear, so the matrix that turns a chassis velocity into
+     * wheel velocities turns its derivative into wheel accelerations
+     * unchanged. Naming it separately is not redundancy -- it is so a reader
+     * meeting {@code toWheelVelocities(someAcceleration)} at a call site does
+     * not have to stop and work out whether it is a bug.
+     *
+     * <p>An implementation with non-linear kinematics -- swerve, where module
+     * angles matter -- would need to override this rather than inherit it.
+     */
+    default double[] toWheelAccelerations(ChassisSpeeds chassisAccelerations) {
+        return toWheelVelocities(chassisAccelerations);
+    }
+
+    /**
      * Forward kinematics on positions rather than velocities: converts per-wheel
      * distance travelled over one loop into a robot-relative movement. This is
      * how drive-encoder odometry gets its twist.

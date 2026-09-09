@@ -116,9 +116,17 @@ public final class MecanumDrivetrain implements Drivetrain {
          * <p>On almost every mecanum build one side is mounted mirrored and must
          * be reversed, otherwise "forward" makes the robot spin. Check this
          * first when a brand new robot does something baffling.
+         *
+         * <p>Must be called <b>after</b> {@link #motors}. It acts on the motor
+         * objects directly, so there is nothing to reverse before they exist --
+         * and a silent no-op here would leave a robot driving wrong with no
+         * indication why, which is exactly the failure this method is for.
+         *
+         * @throws IllegalStateException if the motors have not been supplied yet
          */
         public Builder reverse(boolean frontLeft, boolean frontRight,
                                boolean backLeft, boolean backRight) {
+            requireMotors("reverse");
             applyDirection(this.frontLeft, frontLeft);
             applyDirection(this.frontRight, frontRight);
             applyDirection(this.backLeft, backLeft);
@@ -126,12 +134,19 @@ public final class MecanumDrivetrain implements Drivetrain {
             return this;
         }
 
-        private static void applyDirection(DcMotorEx motor, boolean reversed) {
-            if (motor != null) {
-                motor.setDirection(reversed
-                        ? DcMotorSimple.Direction.REVERSE
-                        : DcMotorSimple.Direction.FORWARD);
+        private void requireMotors(String what) {
+            if (this.frontLeft == null || this.frontRight == null
+                    || this.backLeft == null || this.backRight == null) {
+                throw new IllegalStateException(
+                        what + "() was called before motors(); call motors() first, "
+                                + "or the setting is silently dropped");
             }
+        }
+
+        private static void applyDirection(DcMotorEx motor, boolean reversed) {
+            motor.setDirection(reversed
+                    ? DcMotorSimple.Direction.REVERSE
+                    : DcMotorSimple.Direction.FORWARD);
         }
 
         /** Left-to-right wheel separation. */

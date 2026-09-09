@@ -38,6 +38,23 @@ Clone the repo and run the tests — no Android SDK, no emulator, no robot:
 The Android modules are only included in the build when an SDK is actually
 present, so this works on a machine that has never had Android Studio installed.
 
+### FTC SDK version
+
+`:ftc` and `:TeamCode` compile against **FTC SDK 11.2.1**, pinned in their
+`build.gradle` files. Events run whatever is current, so check for a newer
+release before a competition and bump both files together.
+
+They depend on the SDK with `compileOnly`, against the published AARs, rather
+than vendoring the robot-controller app. That matters for the toolchain: this
+repo builds SDK 11.2.1 fine on **AGP 8.7 / Gradle 8.13**, which is what the
+wrapper here ships.
+
+The SDK's *own* repository asks for a newer toolchain than that — merging these
+modules into an `FtcRobotController` project means adopting **that** project's
+Gradle, AGP and Android Studio requirements, not this one's. If your robot
+project already builds, adding `:core` and `:ftc` to it will not change what it
+needs.
+
 ---
 
 ## Your first auto

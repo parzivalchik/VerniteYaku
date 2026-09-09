@@ -213,15 +213,13 @@ public final class PathFollower implements Follower {
         ChassisSpeeds robotSpeeds =
                 ChassisSpeeds.fromFieldRelative(worldVelocity, omega, pose.heading);
 
-        // Acceleration feedforward goes through the same (linear) kinematics as
-        // velocity, so a per-wheel acceleration falls straight out of a chassis
-        // acceleration expressed along the tangent.
+        // Acceleration feedforward, expressed along the tangent.
         Vector2d worldAcceleration = targetState.tangent.times(motion.acceleration);
         ChassisSpeeds robotAccelerations =
                 ChassisSpeeds.fromFieldRelative(worldAcceleration, 0.0, pose.heading);
 
         double[] wheelVelocities = kinematics.toWheelVelocities(robotSpeeds);
-        double[] wheelAccelerations = kinematics.toWheelVelocities(robotAccelerations);
+        double[] wheelAccelerations = kinematics.toWheelAccelerations(robotAccelerations);
 
         lastWheelVelocities = wheelVelocities;
         lastPowers = toPowers(wheelVelocities, wheelAccelerations);

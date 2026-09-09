@@ -19,6 +19,21 @@ import com.verniteyaku.pathing.math.Matrix3;
  *
  * <p>Not thread-safe; call it from the control loop only.
  *
+ * <h2>Why the simple covariance update, not Joseph form</h2>
+ * The updates below use {@code P = (I - KH)P} and re-symmetrise afterwards.
+ * The Joseph form, {@code P = (I-KH)P(I-KH)' + KRK'}, is more expensive but
+ * guarantees the covariance stays positive-definite however long it runs, where
+ * this form can in principle drift negative through accumulated rounding.
+ *
+ * <p>That guarantee is worth having in a filter that runs for hours. An FTC
+ * autonomous runs for thirty seconds, and a 5000-step test asserts the variances
+ * stay positive and finite across far more updates than a match contains. The
+ * simple form was chosen for that reason, not overlooked.
+ *
+ * <p>If you ever do see this misbehave -- most likely after an unusually long
+ * tuning session rather than in a match -- switching the two update methods to
+ * Joseph form is the first thing to try.
+ *
  * <h2>Frames</h2>
  * Everything is in field coordinates -- see {@link
  * com.verniteyaku.pathing.geometry.FieldCoordinates}.

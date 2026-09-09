@@ -22,7 +22,7 @@ android {
 dependencies {
     implementation project(':ftc')
 
-    compileOnly 'org.firstinspires.ftc:RobotCore:11.0.0'
-    compileOnly 'org.firstinspires.ftc:Hardware:11.0.0'
-    compileOnly 'org.firstinspires.ftc:FtcCommon:11.0.0'
+    compileOnly 'org.firstinspires.ftc:RobotCore:11.2.1'
+    compileOnly 'org.firstinspires.ftc:Hardware:11.2.1'
+    compileOnly 'org.firstinspires.ftc:FtcCommon:11.2.1'
 }

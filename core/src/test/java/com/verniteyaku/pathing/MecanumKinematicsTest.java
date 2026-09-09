@@ -10,6 +10,7 @@ import static com.verniteyaku.pathing.kinematics.MecanumKinematics.BACK_LEFT;
 import static com.verniteyaku.pathing.kinematics.MecanumKinematics.BACK_RIGHT;
 import static com.verniteyaku.pathing.kinematics.MecanumKinematics.FRONT_LEFT;
 import static com.verniteyaku.pathing.kinematics.MecanumKinematics.FRONT_RIGHT;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -179,6 +180,29 @@ class MecanumKinematicsTest {
                         .lateralEfficiency(1.5).build());
         assertThrows(IllegalStateException.class,
                 () -> MecanumKinematics.builder(DistanceUnit.INCH).trackWidth(15).build());
+    }
+
+    @Test
+    void wheelAccelerationsUseTheSameLinearMap() {
+        // Named separately for readability, but it must stay the same map --
+        // the kinematics are linear, so the derivative goes through unchanged.
+        ChassisSpeeds acceleration = new ChassisSpeeds(30, -12, 1.4);
+        double[] viaAccelerations = kinematics.toWheelAccelerations(acceleration);
+        double[] viaVelocities = kinematics.toWheelVelocities(acceleration);
+
+        assertArrayEquals(viaVelocities, viaAccelerations, 1e-12);
+    }
+
+    @Test
+    void accelerationConversionIsLinearInTheChassisAcceleration() {
+        // The property that makes reusing the velocity map legitimate at all.
+        ChassisSpeeds a = new ChassisSpeeds(10, 4, 0.5);
+        double[] once = kinematics.toWheelAccelerations(a);
+        double[] thrice = kinematics.toWheelAccelerations(a.times(3));
+
+        for (int i = 0; i < 4; i++) {
+            assertEquals(once[i] * 3, thrice[i], 1e-12, "wheel " + i);
+        }
     }
 
     @Test

@@ -21,6 +21,6 @@ dependencies {
     // Pose2d, PathBuilder and the rest without adding :core themselves.
     api project(':core')
 
-    compileOnly 'org.firstinspires.ftc:RobotCore:11.0.0'
-    compileOnly 'org.firstinspires.ftc:Hardware:11.0.0'
+    compileOnly 'org.firstinspires.ftc:RobotCore:11.2.1'
+    compileOnly 'org.firstinspires.ftc:Hardware:11.2.1'
 }

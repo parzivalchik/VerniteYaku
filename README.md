@@ -144,7 +144,7 @@ tools/      The alliance collision planner (browser tool, no build step).
 The split between `core` and `ftc` is what makes `./gradlew :core:test` run on
 any laptop with a JDK, with no Android SDK, no emulator, and no robot. Every
 Bezier, every kinematics conversion, and the follower itself are exercised that
-way — 272 tests, all headless.
+way — 274 tests, all headless.
 
 `:ftc` and `:TeamCode` are only included in the build when an Android SDK is
 actually present, so cloning this repo and running the tests works on a machine
