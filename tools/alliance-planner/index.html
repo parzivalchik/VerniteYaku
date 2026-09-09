@@ -191,6 +191,9 @@
 
   .hint { color: var(--muted); font-size: 11px; line-height: 1.5; }
   .hint code { font-family: var(--mono); color: var(--text); }
+  .hint.sim-note {
+    border-left: 2px solid var(--warn); padding-left: 8px; color: #c8bda4;
+  }
 
   /* list items: paths, obstacles */
   .item {
@@ -303,6 +306,12 @@
 
   <div class="tb-spacer"></div>
 
+  <button class="icon-btn" id="helpBtn" title="Keyboard shortcuts (?)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.2-3 4"/><path d="M12 17.5h.01"/></svg>
+  </button>
+  <button class="icon-btn" id="resetBtn" title="Reset to the default plan">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v6h6"/><path d="M3.5 8a9 9 0 1 0 2.1-3.4L3 8"/></svg>
+  </button>
   <button class="icon-btn" id="openBtn" title="Open plan (.json)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M12 3v12"/><path d="m7 8 5-5 5 5"/></svg>
   </button>
@@ -365,11 +374,13 @@
       <div id="verdict" class="verdict">&mdash;</div>
       <div class="row narrow" id="marginRow" style="margin-top:9px">
         <label>Margin</label>
-        <input type="number" id="margin" value="0" step="0.5">
+        <input type="text" inputmode="decimal" id="margin" value="2">
       </div>
       <div class="hint" id="marginHint">
         Footprints are inflated by this many inches on every side before testing,
-        so a plan that only just clears still reads as a hit.
+        so a plan that only just clears still reads as a hit. Defaults to 2&Prime;
+        &mdash; a real robot's odometry drifts over a match, and a plan with no
+        slack has nothing to give.
       </div>
     </div>
 
@@ -393,12 +404,16 @@
     <div class="card">
       <h2><span class="dot" id="robotDot"></span><span id="robotTitle">Robot 1</span></h2>
       <div class="grid2">
-        <div class="row narrow"><label>Start X</label><input type="number" id="sx" step="1"></div>
-        <div class="row narrow"><label>Start Y</label><input type="number" id="sy" step="1"></div>
-        <div class="row narrow"><label>Heading</label><input type="number" id="sh" step="5"></div>
-        <div class="row narrow"><label>Delay</label><input type="number" id="delay" step="0.1" min="0"></div>
-        <div class="row narrow"><label>Length</label><input type="number" id="rlen" step="0.5"></div>
-        <div class="row narrow"><label>Width</label><input type="number" id="rwid" step="0.5"></div>
+        <div class="row narrow"><label>Start X</label><input type="text" inputmode="decimal" id="sx"></div>
+        <div class="row narrow"><label>Start Y</label><input type="text" inputmode="decimal" id="sy"></div>
+        <div class="row narrow"><label>Heading</label><input type="text" inputmode="decimal" id="sh"></div>
+        <div class="row narrow"><label>Delay</label><input type="text" inputmode="decimal" id="delay"></div>
+        <div class="row narrow"><label>Length</label><input type="text" inputmode="decimal" id="rlen"></div>
+        <div class="row narrow"><label>Width</label><input type="text" inputmode="decimal" id="rwid"></div>
+      </div>
+      <div class="row" style="margin-top:7px">
+        <label>Heading arrow</label>
+        <input type="checkbox" id="arrowToggle" style="width:auto;margin:0">
       </div>
       <div class="hint" style="margin-top:8px">
         Everything is field coordinates, origin at field centre. The start
@@ -410,13 +425,20 @@
     <div class="card">
       <h2>Motion</h2>
       <div class="grid2">
-        <div class="row narrow"><label>Max vel</label><input type="number" id="mv" step="1"></div>
-        <div class="row narrow"><label>Accel</label><input type="number" id="ma" step="1"></div>
-        <div class="row narrow"><label>Decel</label><input type="number" id="md" step="1"></div>
+        <div class="row narrow"><label>Max vel</label><input type="text" inputmode="decimal" id="mv"></div>
+        <div class="row narrow"><label>Accel</label><input type="text" inputmode="decimal" id="ma"></div>
+        <div class="row narrow"><label>Decel</label><input type="text" inputmode="decimal" id="md"></div>
       </div>
       <div class="hint" style="margin-top:8px">
         The same trapezoidal profile the follower runs, so the timeline reflects
         when each robot is actually somewhere.
+      </div>
+      <div class="hint sim-note" style="margin-top:8px">
+        <b>Planner-only.</b> These figures, and the robot dimensions above,
+        describe the simulation. Changing them here does not change your robot's
+        code &mdash; copy them into <code>FollowerConstants</code> and
+        <code>MecanumDrivetrain</code> yourself, or the plan and the robot will
+        quietly disagree.
       </div>
     </div>
 
@@ -424,8 +446,8 @@
     <div class="card" id="pointCard">
       <h2>Point position<span class="spacer"></span><span class="idx" id="pointLabel"></span></h2>
       <div class="grid2">
-        <div class="row narrow"><label>X</label><input type="number" id="ptx" step="0.5"></div>
-        <div class="row narrow"><label>Y</label><input type="number" id="pty" step="0.5"></div>
+        <div class="row narrow"><label>X</label><input type="text" inputmode="decimal" id="ptx"></div>
+        <div class="row narrow"><label>Y</label><input type="text" inputmode="decimal" id="pty"></div>
       </div>
       <div class="hint" id="pointHint" style="margin-top:8px">
         Click a handle on the field to select it. Coordinates are absolute
@@ -468,7 +490,10 @@
         <button class="btn" id="loadImageBtn">Load field image&hellip;</button>
         <button class="btn danger" id="clearImageBtn">Clear</button>
       </div>
-      <div class="row narrow" style="margin-top:9px">
+      <div class="hint" id="fieldImageLabel" style="margin-top:8px">
+        No image loaded.
+      </div>
+      <div class="row narrow" style="margin-top:7px">
         <label>Opacity</label>
         <input type="range" id="imgOpacity" min="0" max="100" value="70">
       </div>
@@ -481,14 +506,8 @@
 
     <div class="card">
       <h2>Controls</h2>
-      <div class="hint">
-        <span class="kbd">drag</span> handle &middot;
-        <span class="kbd">space</span> play &middot;
-        <span class="kbd">&larr;</span><span class="kbd">&rarr;</span> step &middot;
-        <span class="kbd">scroll</span> zoom &middot;
-        <span class="kbd">drag bg</span> pan &middot;
-        <span class="kbd">del</span> delete point &middot;
-        <span class="kbd">&#8984;Z</span> undo
+      <div class="btn-row">
+        <button class="btn" id="helpBtn2">Keyboard shortcuts&hellip;</button>
       </div>
     </div>
   </aside>
@@ -527,6 +546,46 @@ const rotate = (x, y, a) => {
 };
 
 const clamp = (v, lo, hi) => v < lo ? lo : (v > hi ? hi : v);
+
+/* --- locale-independent numbers ---------------------------------------------
+
+   Numeric fields are plain text inputs, not `type="number"`, on purpose.
+   Chrome renders and parses a number input using the *browser UI* locale rather
+   than the page's, so on a comma-decimal system the field displays "36,1" and
+   reading `.value` back returns the empty string -- the edit is silently
+   swallowed and the coordinate never changes. Parsing it ourselves behaves
+   identically on every machine.
+   -------------------------------------------------------------------------- */
+
+/** Parses a user-typed number, accepting either decimal separator. */
+function parseNum(raw) {
+  if (raw === null || raw === undefined) return NaN;
+  const v = parseFloat(String(raw).trim().replace(",", "."));
+  return Number.isFinite(v) ? v : NaN;
+}
+
+/** Formats a number with a period, always, regardless of locale. */
+function fmtNum(v, decimals) {
+  if (!Number.isFinite(v)) return "";
+  return decimals === undefined ? String(v) : v.toFixed(decimals);
+}
+
+/**
+ * Restores the up/down arrow stepping that a text field loses relative to
+ * `type="number"`. Shift steps by ten times as much.
+ */
+function wireStepper(el, step) {
+  el.addEventListener("keydown", e => {
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    const current = parseNum(el.value);
+    if (!Number.isFinite(current)) return;
+    e.preventDefault();
+    const delta = (e.key === "ArrowUp" ? 1 : -1) * step * (e.shiftKey ? 10 : 1);
+    el.value = fmtNum(Math.round((current + delta) * 1000) / 1000);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+}
 
 class BezierPath {
   constructor(points) {
@@ -699,13 +758,26 @@ function makeRobot(name, color, start, segments) {
     length: 17, width: 17,
     maxVel: 40, maxAccel: 50, maxDecel: 60,
     delay: 0,
+    showHeadingArrow: true,
     segments,
     _cache: null
   };
 }
 
-function makeObstacle(name, color, x, y, w, h, heading) {
-  return { name, color, x, y, w, h, heading: heading || 0 };
+/** Obstacle categories, so a busy field stays readable at a glance. */
+const OBSTACLE_KINDS = {
+  neutral: { label: "Neutral", color: "#8b95a5" },
+  red:     { label: "Red",     color: "#e05252" },
+  blue:    { label: "Blue",    color: "#5271e0" },
+  hazard:  { label: "Hazard",  color: "#e0b452" }
+};
+
+function makeObstacle(name, kind, x, y, w, h, heading) {
+  const resolved = OBSTACLE_KINDS[kind] ? kind : "neutral";
+  return {
+    name, kind: resolved, color: OBSTACLE_KINDS[resolved].color,
+    x, y, w, h, heading: heading || 0
+  };
 }
 
 function defaultState() {
@@ -722,7 +794,9 @@ function defaultState() {
       ])
     ],
     obstacles: [],
-    margin: 0,
+    // A plan that "just clears" at zero margin has no slack for the odometry
+    // drift a real robot accumulates over a match, so new plans start with some.
+    margin: 2,
     robotCount: 2,
     selected: 0,
     selectedSeg: 0,
@@ -740,7 +814,14 @@ function defaultState() {
 }
 
 let S = defaultState();
-let fieldImage = null;   // decoded Image, kept out of the state snapshot
+/* The field backdrop lives outside the tracked state: a decoded Image for
+   drawing, plus the Blob it came from so saving can serialise it on demand.
+   Holding it as base64 in the state would bloat every undo snapshot by the
+   size of the picture. */
+let fieldImage = null;
+let fieldImageBlob = null;
+let fieldImageUrl = null;
+let fieldImageName = null;
 
 const activeRobots = () => S.robots.slice(0, S.robotCount);
 const isPaired = () => S.robotCount === 2;
@@ -1165,14 +1246,33 @@ function drawRobot(rect, robot, pose, colliding, waiting) {
   ctx.lineWidth = colliding ? 2.5 : 1.8;
   ctx.stroke();
 
-  const nose = rotate(robot.length / 2, 0, pose.heading);
   const c0 = worldToScreen(pose.x, pose.y, rect);
-  const c1 = worldToScreen(pose.x + nose.x, pose.y + nose.y, rect);
-  ctx.beginPath();
-  ctx.moveTo(c0.x, c0.y); ctx.lineTo(c1.x, c1.y);
-  ctx.strokeStyle = colliding ? "#ff5d5d" : robot.color;
-  ctx.lineWidth = 2;
-  ctx.stroke();
+
+  if (robot.showHeadingArrow) {
+    // An arrow rather than a plain nose line: with independent heading the
+    // robot often is not facing the way it is travelling, and the arrowhead is
+    // the quickest way to see which.
+    const reach = robot.length / 2 + 5;
+    const nose = rotate(reach, 0, pose.heading);
+    const tip = worldToScreen(pose.x + nose.x, pose.y + nose.y, rect);
+    ctx.strokeStyle = colliding ? "#ff5d5d" : robot.color;
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(c0.x, c0.y); ctx.lineTo(tip.x, tip.y);
+    ctx.stroke();
+
+    const head = 7;
+    const back = pose.heading + Math.PI;
+    ctx.beginPath();
+    ctx.moveTo(tip.x, tip.y);
+    ctx.lineTo(tip.x + Math.cos(-(back - 0.4)) * head,
+               tip.y + Math.sin(-(back - 0.4)) * head);
+    ctx.lineTo(tip.x + Math.cos(-(back + 0.4)) * head,
+               tip.y + Math.sin(-(back + 0.4)) * head);
+    ctx.closePath();
+    ctx.fill();
+  }
 
   if (waiting) {
     ctx.beginPath();
@@ -1321,7 +1421,7 @@ function snapshot() {
       name: r.name, start: { ...r.start },
       length: r.length, width: r.width,
       maxVel: r.maxVel, maxAccel: r.maxAccel, maxDecel: r.maxDecel,
-      delay: r.delay,
+      delay: r.delay, showHeadingArrow: r.showHeadingArrow,
       segments: r.segments.map(sg => ({
         points: sg.points.map(pt => ({ ...pt })),
         headingMode: sg.headingMode, headingA: sg.headingA, headingB: sg.headingB,
@@ -1342,7 +1442,8 @@ function restoreSnapshot(json) {
         sg.headingA, sg.headingB, sg.maxVel, sg.waitAfter)));
     Object.assign(robot, {
       length: r.length, width: r.width, maxVel: r.maxVel,
-      maxAccel: r.maxAccel, maxDecel: r.maxDecel, delay: r.delay
+      maxAccel: r.maxAccel, maxDecel: r.maxDecel, delay: r.delay,
+      showHeadingArrow: r.showHeadingArrow !== false
     });
     return robot;
   });
@@ -1350,7 +1451,7 @@ function restoreSnapshot(json) {
   S.selectedSeg = Math.min(S.selectedSeg, S.robots[S.selected].segments.length - 1);
   S.selectedPoint = null;
   S.selectedObstacle = null;
-  document.getElementById("margin").value = String(S.margin);
+  document.getElementById("margin").value = fmtNum(S.margin);
   applyRobotCount();
 }
 
@@ -1405,6 +1506,16 @@ function updateHistoryButtons() {
 
 let drag = null;
 
+/**
+ * How far the pointer must travel before a grab becomes a drag, in pixels.
+ *
+ * Without this, a plain click moves whatever it landed on. At a typical zoom one
+ * pixel is a quarter of an inch on the field, and coordinates are rounded to a
+ * tenth, so a single pixel of hand jitter silently shifts a waypoint by ~0.25" --
+ * enough to change a collision verdict. Selecting something must never edit it.
+ */
+const DRAG_THRESHOLD_PX = 4;
+
 function hitTest(px, py, rect) {
   const robot = selectedRobot();
 
@@ -1456,12 +1567,10 @@ canvas.addEventListener("pointerdown", e => {
     if (Math.hypot(px - os.x, py - os.y) < orad) { selectRobot(other); return; }
   }
 
-  if (hit.kind === "start" || hit.kind === "rotate"
-      || hit.kind === "point" || hit.kind === "obstacle") {
-    pushUndo();   // one entry per gesture, not per pointermove
-  }
-
-  drag = { ...hit, startX: px, startY: py, ox: S.view.ox, oy: S.view.oy };
+  // No undo entry and no mutation yet: this may turn out to be a click. The
+  // snapshot is taken once, if and when the gesture actually becomes a drag.
+  drag = { ...hit, startX: px, startY: py, ox: S.view.ox, oy: S.view.oy,
+           moved: false };
 
   if (hit.kind === "point") {
     S.selectedSeg = hit.segment;
@@ -1485,6 +1594,15 @@ canvas.addEventListener("pointermove", e => {
   const rect = canvas.getBoundingClientRect();
   const px = e.clientX - rect.left, py = e.clientY - rect.top;
   const robot = selectedRobot();
+
+  // Editing gestures wait for real movement; panning is harmless immediately.
+  if (drag.kind !== "pan" && !drag.moved) {
+    if (Math.hypot(px - drag.startX, py - drag.startY) < DRAG_THRESHOLD_PX) {
+      return;
+    }
+    drag.moved = true;
+    pushUndo();   // exactly one entry per gesture, not per pointermove
+  }
 
   if (drag.kind === "pan") {
     S.view.userAdjusted = true;
@@ -1762,20 +1880,31 @@ const setters = {
   delay: (r, v) => r.delay = Math.max(0, v)
 };
 
+const fieldSteps = { sx: 1, sy: 1, sh: 5, rlen: 0.5, rwid: 0.5,
+                     mv: 1, ma: 1, md: 1, delay: 0.1 };
+
 for (const id of Object.keys(fields)) {
   const el = document.getElementById(id);
   makeUndoable(el);
+  wireStepper(el, fieldSteps[id] || 1);
   el.addEventListener("input", e => {
-    const v = parseFloat(e.target.value);
+    const v = parseNum(e.target.value);
     if (!Number.isFinite(v)) return;
     setters[id](selectedRobot(), v);
     invalidate(); render();
   });
 }
 
+document.getElementById("arrowToggle").addEventListener("change", e => {
+  pushUndo();
+  selectedRobot().showHeadingArrow = e.target.checked;
+  render();
+});
+
 makeUndoable(document.getElementById("margin"));
+wireStepper(document.getElementById("margin"), 0.5);
 document.getElementById("margin").addEventListener("input", e => {
-  const v = parseFloat(e.target.value);
+  const v = parseNum(e.target.value);
   S.margin = Number.isFinite(v) ? Math.max(0, v) : 0;
   invalidate(); render();
 });
@@ -1784,9 +1913,10 @@ document.getElementById("margin").addEventListener("input", e => {
 ["ptx", "pty"].forEach(id => {
   const el = document.getElementById(id);
   makeUndoable(el);
+  wireStepper(el, 0.5);
   el.addEventListener("input", e => {
     if (!S.selectedPoint) return;
-    const v = parseFloat(e.target.value);
+    const v = parseNum(e.target.value);
     if (!Number.isFinite(v)) return;
     const robot = selectedRobot();
     const pt = robot.segments[S.selectedPoint.segment].points[S.selectedPoint.index];
@@ -1800,17 +1930,18 @@ function syncPanel() {
   const r = selectedRobot();
   for (const id of Object.keys(fields)) {
     const el = document.getElementById(id);
-    if (document.activeElement !== el) el.value = String(fields[id](r));
+    if (document.activeElement !== el) el.value = fmtNum(fields[id](r));
   }
   document.getElementById("robotTitle").textContent = r.name;
   document.getElementById("robotDot").style.background = r.color;
+  document.getElementById("arrowToggle").checked = !!r.showHeadingArrow;
 
   const ptx = document.getElementById("ptx");
   const pty = document.getElementById("pty");
   if (S.selectedPoint) {
     const pt = r.segments[S.selectedPoint.segment].points[S.selectedPoint.index];
-    if (document.activeElement !== ptx) ptx.value = String(pt.x);
-    if (document.activeElement !== pty) pty.value = String(pt.y);
+    if (document.activeElement !== ptx) ptx.value = fmtNum(pt.x);
+    if (document.activeElement !== pty) pty.value = fmtNum(pt.y);
     ptx.disabled = pty.disabled = false;
     document.getElementById("pointLabel").textContent =
       `path ${S.selectedPoint.segment} · point ${S.selectedPoint.index}`;
@@ -1867,41 +1998,43 @@ function renderSegments() {
         </div>
         <div class="row narrow" data-role="ha" style="display:none">
           <label>Start</label>
-          <input type="number" step="5" data-act="ha" data-i="${i}">
+          <input type="text" inputmode="decimal" data-act="ha" data-i="${i}">
         </div>
         <div class="row narrow" data-role="hb" style="display:none">
           <label>End</label>
-          <input type="number" step="5" data-act="hb" data-i="${i}">
+          <input type="text" inputmode="decimal" data-act="hb" data-i="${i}">
         </div>
         <div class="row narrow">
           <label title="Blank uses the robot's global max velocity">Max vel</label>
-          <input type="number" step="1" min="0" placeholder="global"
+          <input type="text" inputmode="decimal" placeholder="global"
                  data-act="cap" data-i="${i}">
         </div>
         <div class="row narrow">
           <label title="Seconds parked here before the next path">Wait</label>
-          <input type="number" step="0.1" min="0" placeholder="0"
+          <input type="text" inputmode="decimal" placeholder="0"
                  data-act="wait" data-i="${i}">
         </div>
       </div>`;
 
     div.querySelector("select").value = sg.headingMode;
-    div.querySelector('[data-act="cap"]').value = sg.maxVel == null ? "" : String(sg.maxVel);
-    div.querySelector('[data-act="wait"]').value = sg.waitAfter ? String(sg.waitAfter) : "";
+    div.querySelector('[data-act="cap"]').value =
+      sg.maxVel == null ? "" : fmtNum(sg.maxVel);
+    div.querySelector('[data-act="wait"]').value =
+      sg.waitAfter ? fmtNum(sg.waitAfter) : "";
 
     const rowA = div.querySelector('[data-role="ha"]');
     const rowB = div.querySelector('[data-role="hb"]');
     if (sg.headingMode === "constant" || sg.headingMode === "linear") {
       rowA.style.display = "flex";
       rowA.querySelector("input").value =
-        String(Math.round(sg.headingA * 180 / Math.PI * 10) / 10);
+        fmtNum(Math.round(sg.headingA * 180 / Math.PI * 10) / 10);
       rowA.querySelector("label").textContent =
         sg.headingMode === "constant" ? "Angle" : "Start";
     }
     if (sg.headingMode === "linear") {
       rowB.style.display = "flex";
       rowB.querySelector("input").value =
-        String(Math.round(sg.headingB * 180 / Math.PI * 10) / 10);
+        fmtNum(Math.round(sg.headingB * 180 / Math.PI * 10) / 10);
     }
 
     div.addEventListener("click", e => {
@@ -1916,7 +2049,11 @@ function renderSegments() {
   host.querySelectorAll("[data-act]").forEach(el => {
     const act = el.dataset.act;
     const i = parseInt(el.dataset.i, 10);
-    if (el.tagName === "INPUT") makeUndoable(el);
+    if (el.tagName === "INPUT") {
+      makeUndoable(el);
+      wireStepper(el, act === "ha" || act === "hb" ? 5
+                    : act === "wait" ? 0.1 : 1);
+    }
 
     el.addEventListener(el.tagName === "BUTTON" ? "click" : "input", e => {
       e.stopPropagation();
@@ -1949,14 +2086,17 @@ function renderSegments() {
           sg.headingB = path.tangentAngle(1);
         }
       } else if (act === "ha") {
-        sg.headingA = (parseFloat(el.value) || 0) * Math.PI / 180;
+        const v = parseNum(el.value);
+        sg.headingA = (Number.isFinite(v) ? v : 0) * Math.PI / 180;
       } else if (act === "hb") {
-        sg.headingB = (parseFloat(el.value) || 0) * Math.PI / 180;
+        const v = parseNum(el.value);
+        sg.headingB = (Number.isFinite(v) ? v : 0) * Math.PI / 180;
       } else if (act === "cap") {
-        const raw = el.value.trim(), parsed = parseFloat(raw);
-        sg.maxVel = (raw === "" || !Number.isFinite(parsed) || parsed <= 0) ? null : parsed;
+        const parsed = parseNum(el.value);
+        sg.maxVel = (el.value.trim() === "" || !Number.isFinite(parsed) || parsed <= 0)
+          ? null : parsed;
       } else if (act === "wait") {
-        const parsed = parseFloat(el.value);
+        const parsed = parseNum(el.value);
         sg.waitAfter = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
       }
 
@@ -2009,21 +2149,25 @@ function renderObstacles() {
         <span class="idx">${i}</span>
         <input type="text" data-act="oname" data-i="${i}" value="${o.name}"
                style="flex:1;padding:3px 6px">
-        <input type="color" data-act="ocolor" data-i="${i}" value="${o.color}">
+        <select data-act="okind" data-i="${i}" style="width:88px;padding:3px 4px">
+          ${Object.entries(OBSTACLE_KINDS).map(([k, v]) =>
+            `<option value="${k}"${o.kind === k ? " selected" : ""}>${v.label}</option>`
+          ).join("")}
+        </select>
         <button class="mini danger" data-act="odel" data-i="${i}">&times;</button>
       </div>
       <div class="grid2">
         <div class="row narrow"><label>X</label>
-          <input type="number" step="1" data-act="ox" data-i="${i}" value="${o.x}"></div>
+          <input type="text" inputmode="decimal" data-act="ox" data-i="${i}" value="${fmtNum(o.x)}"></div>
         <div class="row narrow"><label>Y</label>
-          <input type="number" step="1" data-act="oy" data-i="${i}" value="${o.y}"></div>
+          <input type="text" inputmode="decimal" data-act="oy" data-i="${i}" value="${fmtNum(o.y)}"></div>
         <div class="row narrow"><label>Width</label>
-          <input type="number" step="1" min="1" data-act="ow" data-i="${i}" value="${o.w}"></div>
+          <input type="text" inputmode="decimal" data-act="ow" data-i="${i}" value="${fmtNum(o.w)}"></div>
         <div class="row narrow"><label>Depth</label>
-          <input type="number" step="1" min="1" data-act="oh" data-i="${i}" value="${o.h}"></div>
+          <input type="text" inputmode="decimal" data-act="oh" data-i="${i}" value="${fmtNum(o.h)}"></div>
         <div class="row narrow"><label>Angle</label>
-          <input type="number" step="5" data-act="oa" data-i="${i}"
-                 value="${Math.round(o.heading * 180 / Math.PI)}"></div>
+          <input type="text" inputmode="decimal" data-act="oa" data-i="${i}"
+                 value="${fmtNum(Math.round(o.heading * 180 / Math.PI))}"></div>
       </div>`;
 
     div.addEventListener("click", e => {
@@ -2049,9 +2193,12 @@ function renderObstacles() {
         return;
       }
       const o = S.obstacles[i];
-      const v = parseFloat(el.value);
+      const v = parseNum(el.value);
       if (act === "oname") o.name = el.value;
-      else if (act === "ocolor") o.color = el.value;
+      else if (act === "okind") {
+        o.kind = el.value;
+        o.color = OBSTACLE_KINDS[el.value].color;
+      }
       else if (act === "ox" && Number.isFinite(v)) o.x = v;
       else if (act === "oy" && Number.isFinite(v)) o.y = v;
       else if (act === "ow" && Number.isFinite(v)) o.w = Math.max(1, v);
@@ -2064,29 +2211,81 @@ function renderObstacles() {
 
 document.getElementById("addObstacle").addEventListener("click", () => {
   pushUndo();
-  const palette = ["#e05252", "#5271e0", "#e0b452", "#52e08a", "#b452e0"];
   S.obstacles.push(makeObstacle(
-    "Obstacle " + (S.obstacles.length + 1),
-    palette[S.obstacles.length % palette.length],
-    0, 0, 24, 24, 0));
+    "Obstacle " + (S.obstacles.length + 1), "neutral", 0, 0, 24, 24, 0));
   S.selectedObstacle = S.obstacles.length - 1;
   invalidate(); syncPanel(); render();
 });
 
 /* ---------- field image ---------- */
 
-function setFieldImage(dataUrl) {
-  if (!dataUrl) {
-    fieldImage = null;
-    S.field.imageDataUrl = null;
+function clearFieldImage() {
+  if (fieldImageUrl) URL.revokeObjectURL(fieldImageUrl);
+  fieldImage = null;
+  fieldImageBlob = null;
+  fieldImageUrl = null;
+  fieldImageName = null;
+  updateFieldImageLabel();
+  render();
+}
+
+/** Loads a field backdrop from a Blob or File. */
+function setFieldImageBlob(blob, name) {
+  if (!blob) { clearFieldImage(); return; }
+
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  img.onload = () => {
+    if (fieldImageUrl) URL.revokeObjectURL(fieldImageUrl);
+    fieldImage = img;
+    fieldImageBlob = blob;
+    fieldImageUrl = url;
+    fieldImageName = name || "field image";
+    updateFieldImageLabel();
     render();
+  };
+  img.onerror = () => {
+    URL.revokeObjectURL(url);
+    alert("That image could not be decoded.");
+  };
+  img.src = url;
+}
+
+/** Loads a backdrop from a base64 data URL -- only used when opening a plan. */
+function setFieldImageFromDataUrl(dataUrl, name) {
+  if (!dataUrl) { clearFieldImage(); return; }
+  fetch(dataUrl)
+    .then(r => r.blob())
+    .then(b => setFieldImageBlob(b, name || "from plan"))
+    .catch(() => alert("The field image stored in that plan could not be read."));
+}
+
+/** Base64 for saving. Resolves to null when there is no image. */
+function fieldImageAsDataUrl() {
+  if (!fieldImageBlob) return Promise.resolve(null);
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(fieldImageBlob);
+  });
+}
+
+/** Says out loud whether a backdrop is loaded, so it is never ambiguous. */
+function updateFieldImageLabel() {
+  const el = document.getElementById("fieldImageLabel");
+  if (!el) return;
+  if (!fieldImage) {
+    el.textContent = "No image loaded.";
+    el.style.color = "";
     return;
   }
-  const img = new Image();
-  img.onload = () => { fieldImage = img; render(); };
-  img.onerror = () => alert("That image could not be decoded.");
-  img.src = dataUrl;
-  S.field.imageDataUrl = dataUrl;
+  const kb = fieldImageBlob ? Math.round(fieldImageBlob.size / 1024) : 0;
+  const hidden = S.field.opacity <= 0.01;
+  el.textContent = `${fieldImageName} — ${fieldImage.naturalWidth}×`
+    + `${fieldImage.naturalHeight}, ${kb} KB`
+    + (hidden ? " — hidden, opacity is 0" : "");
+  el.style.color = hidden ? "var(--warn)" : "var(--ok)";
 }
 
 document.getElementById("loadImageBtn").addEventListener("click", () =>
@@ -2094,21 +2293,66 @@ document.getElementById("loadImageBtn").addEventListener("click", () =>
 
 document.getElementById("imageInput").addEventListener("change", e => {
   const file = e.target.files && e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => setFieldImage(reader.result);
-  reader.readAsDataURL(file);
+  if (file) setFieldImageBlob(file, file.name);
   e.target.value = "";
 });
 
-document.getElementById("clearImageBtn").addEventListener("click", () => setFieldImage(null));
+document.getElementById("clearImageBtn").addEventListener("click", clearFieldImage);
 
 document.getElementById("imgOpacity").addEventListener("input", e => {
   S.field.opacity = (parseFloat(e.target.value) || 0) / 100;
+  updateFieldImageLabel();
   render();
 });
 
 /* ---------- toolbar ---------- */
+
+const SHORTCUTS = [
+  ["drag a handle", "move a waypoint, the robot, or an obstacle"],
+  ["drag the background", "pan the field"],
+  ["scroll", "zoom"],
+  ["click a handle", "select it — selecting never moves anything"],
+  ["Delete / Backspace", "remove the selected control point"],
+  ["Space", "play / pause"],
+  ["\u2190  \u2192", "step one frame"],
+  ["\u2191  \u2193 in a field", "nudge the value (hold Shift for 10\u00d7)"],
+  ["Cmd/Ctrl + Z", "undo"],
+  ["Cmd/Ctrl + Shift + Z", "redo"],
+  ["Cmd/Ctrl + S", "save the plan"],
+  ["?", "this list"],
+  ["Escape", "close a dialog"]
+];
+
+function showShortcuts() {
+  const width = Math.max(...SHORTCUTS.map(([k]) => k.length));
+  showText("Keyboard and mouse",
+    SHORTCUTS.map(([k, v]) => k.padEnd(width + 3) + v).join("\n"),
+    "everything the planner responds to");
+}
+
+document.getElementById("helpBtn").addEventListener("click", showShortcuts);
+document.getElementById("helpBtn2").addEventListener("click", showShortcuts);
+
+/**
+ * Hard reset. Undo covers edits, but a reset is the way out of a plan that has
+ * got into a shape nobody wants to unpick one step at a time.
+ */
+document.getElementById("resetBtn").addEventListener("click", () => {
+  if (!confirm("Discard this plan and start again from the default?")) return;
+  pushUndo();
+  const view = S.view;
+  const count = S.robotCount;
+  const showGrid = S.showGrid;
+  S = defaultState();
+  S.view = view;
+  S.robotCount = count;
+  S.showGrid = showGrid;
+  document.getElementById("margin").value = fmtNum(S.margin);
+  applyRobotCount();
+  invalidate();
+  selectRobot(0);
+  render();
+});
 
 document.getElementById("undoBtn").addEventListener("click", undo);
 document.getElementById("redoBtn").addEventListener("click", redo);
@@ -2200,7 +2444,12 @@ function toPointsArray(robot) {
     + `double[][] points = {\n${rows.join(",\n")}\n};`;
 }
 
-function toJson() {
+/**
+ * @param embeddedImage base64 backdrop to inline, or null. Produced on demand
+ *                      rather than held in state, so an image never bloats an
+ *                      undo snapshot.
+ */
+function toJson(embeddedImage) {
   return JSON.stringify({
     format: "verniteyaku-alliance-plan",
     version: 3,
@@ -2208,8 +2457,8 @@ function toJson() {
     frame: "everything is field coordinates: origin at field centre, heading CCW from +X",
     margin: S.margin,
     robotCount: S.robotCount,
-    field: S.field.imageDataUrl && S.field.imageDataUrl.length < 2_000_000
-      ? { opacity: S.field.opacity, imageDataUrl: S.field.imageDataUrl }
+    field: embeddedImage
+      ? { opacity: S.field.opacity, imageDataUrl: embeddedImage }
       : { opacity: S.field.opacity },
     obstacles: S.obstacles.map(o => ({ ...o })),
     robots: activeRobots().map(r => ({
@@ -2245,38 +2494,61 @@ function download(filename, blob) {
 const stamp = () =>
   new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
 
-function showText(title, text) {
+function showText(title, text, subtitle) {
   const existing = document.getElementById("textModal");
   if (existing) existing.remove();
 
+  const lineCount = text.split("\n").length;
+
   const wrap = document.createElement("div");
   wrap.id = "textModal";
-  wrap.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,.6);
-    display:flex;align-items:center;justify-content:center;z-index:100;padding:32px`;
+  wrap.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,.66);
+    display:flex;align-items:center;justify-content:center;z-index:100;padding:24px`;
+  // An explicit height, not just max-height: the textarea below uses flex:1,
+  // whose flex-basis of 0% collapses inside a content-sized container.
   wrap.innerHTML = `
     <div style="background:var(--card);border:1px solid var(--line);border-radius:10px;
-                padding:14px;max-width:820px;width:100%;max-height:80vh;display:flex;
-                flex-direction:column;gap:10px">
-      <div style="display:flex;align-items:center;gap:10px">
-        <b style="flex:1">${title}</b>
-        <button class="btn" data-act="copy">Copy</button>
+                padding:14px;max-width:960px;width:100%;height:calc(100vh - 48px);
+                display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;align-items:baseline;gap:10px;flex:0 0 auto">
+        <b>${title}</b>
+        <span class="hint" style="flex:1">${subtitle || ""} &middot; ${lineCount} lines</span>
+        <button class="btn primary" data-act="copy">Copy</button>
         <button class="btn" data-act="close">Close</button>
       </div>
-      <textarea readonly spellcheck="false"
-                style="flex:1;height:52vh">${text.replace(/</g, "&lt;")}</textarea>
+      <textarea readonly spellcheck="false" wrap="off"
+                style="flex:1 1 auto;height:auto;min-height:0;resize:none;
+                       white-space:pre;overflow:auto"
+                >${text.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</textarea>
+      <div class="hint" style="flex:0 0 auto">
+        Escape or click outside to close.
+      </div>
     </div>`;
 
+  const close = () => {
+    wrap.remove();
+    document.removeEventListener("keydown", onKey);
+  };
+  const onKey = e => { if (e.key === "Escape") close(); };
+  document.addEventListener("keydown", onKey);
+
   wrap.addEventListener("click", e => {
-    if (e.target === wrap || e.target.dataset.act === "close") wrap.remove();
+    if (e.target === wrap || e.target.dataset.act === "close") { close(); return; }
     if (e.target.dataset.act === "copy") {
       const ta = wrap.querySelector("textarea");
+      const btn = e.target;
+      const done = label => {
+        btn.textContent = label;
+        btn.disabled = true;
+        setTimeout(() => { btn.textContent = "Copy"; btn.disabled = false; }, 1800);
+      };
       navigator.clipboard.writeText(ta.value).then(
-        () => { e.target.textContent = "Copied"; },
-        () => { ta.select(); e.target.textContent = "Press Cmd/Ctrl+C"; });
-      setTimeout(() => { e.target.textContent = "Copy"; }, 1600);
+        () => done("Copied \u2713"),
+        () => { ta.select(); done("Press Cmd/Ctrl+C"); });
     }
   });
   document.body.appendChild(wrap);
+  wrap.querySelector("textarea").scrollTop = 0;
 }
 
 exportMenu.addEventListener("click", e => {
@@ -2285,14 +2557,17 @@ exportMenu.addEventListener("click", e => {
   exportMenu.hidden = true;
 
   if (kind === "java") {
+    const which = isPaired()
+      ? "both robots (robot1 and robot2)"
+      : selectedRobot().name + " only";
     showText("Java code", activeRobots()
       .map((r, i) => toJava(r, isPaired() ? "robot" + (i + 1) : "path"))
-      .join("\n\n"));
+      .join("\n\n"), which);
   } else if (kind === "json") {
-    download(`alliance-plan-${stamp()}.json`,
-      new Blob([toJson()], { type: "application/json" }));
+    savePlan();
   } else if (kind === "points") {
-    showText("Points array", activeRobots().map(toPointsArray).join("\n\n"));
+    showText("Points array", activeRobots().map(toPointsArray).join("\n\n"),
+      isPaired() ? "both robots" : selectedRobot().name + " only");
   } else if (kind === "png") {
     canvas.toBlob(blob => {
       if (blob) download(`field-${stamp()}.png`, blob);
@@ -2300,9 +2575,24 @@ exportMenu.addEventListener("click", e => {
   }
 });
 
-document.getElementById("saveBtn").addEventListener("click", () =>
-  download(`alliance-plan-${stamp()}.json`,
-    new Blob([toJson()], { type: "application/json" })));
+/** Saves a plan, embedding the backdrop when it is small enough to be sane. */
+function savePlan() {
+  const MAX_EMBED_BYTES = 1_500_000;
+  const wantsImage = fieldImageBlob && fieldImageBlob.size <= MAX_EMBED_BYTES;
+  const source = wantsImage ? fieldImageAsDataUrl() : Promise.resolve(null);
+
+  source.then(dataUrl => {
+    if (fieldImageBlob && !wantsImage) {
+      alert(`The field image is ${Math.round(fieldImageBlob.size / 1024)} KB, `
+        + `too large to embed in a plan file. The plan will save without it; `
+        + `reload the image after opening.`);
+    }
+    download(`alliance-plan-${stamp()}.json`,
+      new Blob([toJson(dataUrl)], { type: "application/json" }));
+  });
+}
+
+document.getElementById("saveBtn").addEventListener("click", savePlan);
 
 /* ---------- loading ---------- */
 
@@ -2358,11 +2648,11 @@ function applyPlan(data) {
 
   if (data.field) {
     S.field.opacity = data.field.opacity != null ? data.field.opacity : 0.7;
-    document.getElementById("imgOpacity").value = String(Math.round(S.field.opacity * 100));
-    setFieldImage(data.field.imageDataUrl || null);
+    document.getElementById("imgOpacity").value = fmtNum(Math.round(S.field.opacity * 100));
+    setFieldImageFromDataUrl(data.field.imageDataUrl || null, "from plan");
   }
 
-  document.getElementById("margin").value = String(S.margin);
+  document.getElementById("margin").value = fmtNum(S.margin);
   applyRobotCount();
   invalidate();
   selectRobot(0);
@@ -2406,9 +2696,7 @@ canvas.addEventListener("drop", e => {
   const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
   if (!file) return;
   if (file.type.startsWith("image/")) {
-    const reader = new FileReader();
-    reader.onload = () => setFieldImage(reader.result);
-    reader.readAsDataURL(file);
+    setFieldImageBlob(file, file.name);
   } else {
     file.text().then(t => loadPlanText(t, file.name))
                .catch(err => alert("Could not read that file: " + err.message));
@@ -2450,13 +2738,18 @@ window.addEventListener("keydown", e => {
   }
   if (mod && e.key.toLowerCase() === "s") {
     e.preventDefault();
-    document.getElementById("saveBtn").click();
+    savePlan();
+  }
+  if (e.key === "?") {
+    e.preventDefault();
+    showShortcuts();
   }
 });
 
 /* ---------- boot ---------- */
 
 window.addEventListener("resize", render);
+updateFieldImageLabel();
 applyRobotCount();
 invalidate();
 selectRobot(0);

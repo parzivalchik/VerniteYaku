@@ -525,14 +525,29 @@ competition.
 
 ### The rest
 
+- **Safety margin, 2" by default.** Footprints are inflated before testing. A
+  plan that only just clears at zero margin has no slack for the odometry drift a
+  real robot accumulates over a match.
+- **Obstacles are tagged** neutral, red, blue or hazard, so a field with several
+  of them and two robots stays readable.
+- **Heading arrow** per robot, toggleable — the fastest way to see whether a
+  robot is facing where it is going or holding a fixed heading while it
+  translates.
 - **Field backdrop** — drop in an official field image and it stretches over the
   144" square. No game field is drawn from memory: one that is subtly wrong is
   worse than none, because you would plan against fiction.
 - **Exports** — Java code, plan JSON, a sampled points array, or the field as a
-  PNG.
+  PNG. The code view is full-height and says which robots it covers.
 - **Save / open** — plans are real `.json` files you can commit next to your
   auto. Drop one on the canvas to open it.
-- **Undo / redo** across every edit, including the one/two-robot switch.
+- **Undo / redo** across every edit, plus a hard reset for a plan that has got
+  somewhere you would rather not unpick a step at a time.
+- **Keyboard shortcuts** behind the `?` button, or press `?`.
+
+Numbers in the planner are **planner-only**: motion limits and robot dimensions
+describe the simulation and do not reach your robot's code. Copy them into
+`FollowerConstants` and `MecanumDrivetrain` yourself, or the plan and the robot
+will quietly disagree. The panel says so where you enter them.
 
 ## Licence
 

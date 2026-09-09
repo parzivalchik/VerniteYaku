@@ -201,7 +201,10 @@ numbers on the canvas are the numbers you paste.
 Plan for **one robot** — a visual path editor for your own auto — or **two**,
 which additionally checks both alliance partners' paths against each other.
 Either way it tests against **obstacles** you define, using the same exact
-rotated-rectangle intersection.
+rotated-rectangle intersection, with a 2" safety margin by default.
+
+Motion limits and robot dimensions in the planner are simulation settings. They
+do not reach your robot's code — copy them across yourself.
 
 It also supports mid-path **waits**. Those are not part of a `PathChain` — the
 export flags them as comments — so sequence them yourself, for instance with
