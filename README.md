@@ -27,9 +27,8 @@ MecanumDrivetrain drivetrain = MecanumDrivetrain.builder(DistanceUnit.INCH)
         .ticksPerRevolution(537.7).maxMotorRpm(312)
         .build();
 
-FusedLocalizer localizer = FusedLocalizer.builder(drivetrain, Clock.system())
+OdometryComputerLocalizer localizer = OdometryComputerLocalizer.builder(tracker)
         .startPose(new Pose2d(-60, -36, 0))     // where the robot is placed
-        .headingSource(new ImuHeadingSource(hardwareMap.get(IMU.class, "imu")))
         .build();
 
 FollowerConstants constants = FollowerConstants.builder(DistanceUnit.INCH)
@@ -92,9 +91,8 @@ The flip side: absolute coordinates cannot be inferred from encoders, so the
 localizer has to be told where the robot is placed.
 
 ```java
-FusedLocalizer localizer = FusedLocalizer.builder(drivetrain, Clock.system())
+OdometryComputerLocalizer localizer = OdometryComputerLocalizer.builder(tracker)
         .startPose(new Pose2d(-60, -36, 0))
-        .headingSource(new ImuHeadingSource(imu))
         .build();
 ```
 
@@ -160,7 +158,7 @@ Each depends only on the one below it:
 | Follower | `follower` | Turns a path and a pose into wheel commands |
 | Control | `control` | Motion profile, PID, feedforward constants |
 | Paths | `paths` | Bezier curves, chains, heading interpolation |
-| Localization | `localization` | Where the robot is. Odometry, or the EKF |
+| Localization | `localization` | Where the robot is. An odometry computer, drive encoders, or the EKF |
 | Kinematics | `kinematics` | Chassis motion ↔ wheel motion |
 | Drive | `drive` | The four-method hardware seam |
 | Tuning | `tuning` | Online feedforward fitting, stall detection |
@@ -562,3 +560,11 @@ will quietly disagree. The panel says so where you enter them.
 ## Licence
 
 MIT. See [LICENSE](LICENSE).
+
+`TeamCode/` vendors one third-party file: goBILDA's `GoBildaPinpointDriver.java`
+(MIT, © Base 10 Assets LLC), with its notice intact. It is not on Maven Central,
+so vendoring it is the only way the Pinpoint sample compiles. `:core` and `:ftc`
+do not depend on it. To update, re-copy from
+[FtcRobotController-Add-Pinpoint](https://github.com/goBILDA-Official/FtcRobotController-Add-Pinpoint)
+(branch `goBILDA-Odometry-Driver`); `PinpointOdometryComputer` is the only thing
+that would break.

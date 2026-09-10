@@ -2,7 +2,6 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.hardware.IMU;
 import com.verniteyaku.pathing.command.CommandRunner;
 import com.verniteyaku.pathing.command.Commands;
 import com.verniteyaku.pathing.command.FollowPathCommand;
@@ -12,9 +11,9 @@ import com.verniteyaku.pathing.follower.PathFollower;
 import com.verniteyaku.pathing.geometry.Pose2d;
 import com.verniteyaku.pathing.ftc.FtcTuningStore;
 import com.verniteyaku.pathing.ftc.HubVoltageSource;
-import com.verniteyaku.pathing.ftc.ImuHeadingSource;
 import com.verniteyaku.pathing.ftc.MecanumDrivetrain;
-import com.verniteyaku.pathing.localization.FusedLocalizer;
+import com.verniteyaku.pathing.localization.OdometryComputer;
+import com.verniteyaku.pathing.localization.OdometryComputerLocalizer;
 import com.verniteyaku.pathing.paths.BezierCurve;
 import com.verniteyaku.pathing.paths.BezierLine;
 import com.verniteyaku.pathing.paths.PathBuilder;
@@ -56,9 +55,14 @@ public class ExampleTunedAutoOpMode extends LinearOpMode {
         // Field coordinates, so the robot's real starting spot has to be given.
         Pose2d startPose = new Pose2d(-60, -36, Math.toRadians(0));
 
-        FusedLocalizer localizer = FusedLocalizer.builder(drivetrain, clock)
+        // See ExampleAutoOpMode for where PinpointOdometryComputer comes from.
+        OdometryComputer tracker = new PinpointOdometryComputer(
+                hardwareMap, "pinpoint",
+                GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD,
+                -84.0, -168.0);
+
+        OdometryComputerLocalizer localizer = OdometryComputerLocalizer.builder(tracker)
                 .startPose(startPose)
-                .headingSource(new ImuHeadingSource(hardwareMap.get(IMU.class, "imu")))
                 .build();
 
         HubVoltageSource voltage = new HubVoltageSource(hardwareMap);
@@ -168,6 +172,7 @@ public class ExampleTunedAutoOpMode extends LinearOpMode {
             telemetry.addData("Pending", feedforward.hasPending()
                     ? "yes -- applies at the next path" : "no");
             telemetry.addData("Stall", lastStall.get());
+            telemetry.addData("Tracker", localizer.getHealthDetail());
             telemetry.update();
         }
 

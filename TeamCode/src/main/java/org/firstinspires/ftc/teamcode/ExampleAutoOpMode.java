@@ -2,13 +2,12 @@ package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.hardware.IMU;
 import com.verniteyaku.pathing.control.FollowerConstants;
 import com.verniteyaku.pathing.follower.PathFollower;
 import com.verniteyaku.pathing.geometry.Pose2d;
-import com.verniteyaku.pathing.ftc.ImuHeadingSource;
 import com.verniteyaku.pathing.ftc.MecanumDrivetrain;
-import com.verniteyaku.pathing.localization.FusedLocalizer;
+import com.verniteyaku.pathing.localization.OdometryComputer;
+import com.verniteyaku.pathing.localization.OdometryComputerLocalizer;
 import com.verniteyaku.pathing.paths.BezierCurve;
 import com.verniteyaku.pathing.paths.BezierLine;
 import com.verniteyaku.pathing.paths.PathBuilder;
@@ -48,22 +47,26 @@ public class ExampleAutoOpMode extends LinearOpMode {
                 .build();
         drivetrain.resetEncoders();
 
-        IMU imu = hardwareMap.get(IMU.class, "imu");
-        // Initialise the IMU with your hub's actual orientation before this
-        // point if you have not already; the library takes it as it finds it.
-        ImuHeadingSource heading = new ImuHeadingSource(imu);
-
         // Where the robot is actually placed, in field coordinates. Measure this
         // once against the tiles; get it wrong and the whole auto is offset by
         // the same amount.
         Pose2d startPose = new Pose2d(-60, -36, Math.toRadians(0));
 
-        // Encoders predict, the IMU corrects. Swap in DriveEncoderLocalizer if
-        // you want plain dead reckoning with no filtering.
-        FusedLocalizer localizer = FusedLocalizer.builder(
-                        drivetrain, com.verniteyaku.pathing.control.Clock.system())
+        // A goBILDA Pinpoint reading two odometry pods. It fuses them with its
+        // own onboard gyro and hands back a finished pose, so nothing here
+        // filters it further.
+        //
+        // PinpointOdometryComputer is not part of this library -- copy it from
+        // examples/pinpoint/ into your TeamCode, alongside goBILDA's
+        // GoBildaPinpointDriver.java, which is not published to Maven.
+        OdometryComputer tracker = new PinpointOdometryComputer(
+                hardwareMap, "pinpoint",
+                GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD,
+                -84.0,    // X pod offset from the tracking centre, mm
+                -168.0);  // Y pod offset from the tracking centre, mm
+
+        OdometryComputerLocalizer localizer = OdometryComputerLocalizer.builder(tracker)
                 .startPose(startPose)
-                .headingSource(heading)
                 .build();
 
         // --- Tuning ---------------------------------------------------------
@@ -126,6 +129,9 @@ public class ExampleAutoOpMode extends LinearOpMode {
             telemetry.addData("Error", "%.2f in, %.1f deg",
                     follower.getPositionError(),
                     AngleUnit.DEGREES.fromRadians(follower.getHeadingError()));
+            // Worth watching: a pod that unplugs mid-auto still reports a
+            // plausible-looking pose, so this is how you find out.
+            telemetry.addData("Tracker", localizer.getHealthDetail());
             // Worth watching while tuning the blend: 1.0 means "tracking fine",
             // rising toward reactiveAuthority means "fighting to get back".
             telemetry.addData("Authority", "%.2f (confidence %.2f)",

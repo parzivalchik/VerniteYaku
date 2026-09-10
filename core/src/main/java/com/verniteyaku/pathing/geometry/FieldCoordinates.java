@@ -22,7 +22,7 @@ import com.verniteyaku.pathing.units.DistanceUnit;
  * <h2>The one thing you must confirm on the field</h2>
  * The origin and the handedness above are not negotiable. <b>Which physical wall
  * +X points at is a choice</b>, and it has to match how your AprilTag layout and
- * your IMU zero are set up. This library deliberately does not bake in a
+ * your heading sensor are set up. This library deliberately does not bake in a
  * season-specific wall mapping, because getting that silently wrong is expensive
  * and it is one line for you to pin down.
  *
@@ -39,9 +39,8 @@ import com.verniteyaku.pathing.units.DistanceUnit;
  * Give the localizer a {@code startPose}:
  *
  * <pre>{@code
- * FusedLocalizer localizer = FusedLocalizer.builder(drivetrain, clock)
+ * OdometryComputerLocalizer localizer = OdometryComputerLocalizer.builder(tracker)
  *         .startPose(new Pose2d(-60, -36, 0))   // where the robot is placed
- *         .headingSource(new ImuHeadingSource(imu))
  *         .build();
  * }</pre>
  *

@@ -1,7 +1,13 @@
 # Localization
 
-Two implementations behind one interface. The follower cannot tell them apart, so
-swapping is a one-line change.
+Three implementations behind one interface. The follower cannot tell them apart,
+so swapping is a one-line change.
+
+**The Control Hub's built-in IMU is not used anywhere in this library**, and no
+adapter for it ships. It is unreliable on newer hubs, and heading error is the
+single fastest way to turn a small translation error into a large one — so
+rather than offer it with a warning, it is simply absent. Bring your own heading
+sensor, or better, an odometry computer that carries its own.
 
 ---
 
@@ -28,6 +34,56 @@ every path is offset by the same amount.
 
 ---
 
+## OdometryComputerLocalizer — recommended
+
+For a goBILDA Pinpoint, a SparkFun OTOS, or anything else that tracks its own
+pose. The device reads its odometry pods, fuses them with its **own** onboard
+gyro — a separate part from the Control Hub's — and hands back a finished pose.
+
+```java
+OdometryComputer tracker = new PinpointOdometryComputer(
+        hardwareMap, "pinpoint",
+        GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD,
+        -84.0, -168.0);          // pod offsets from the tracking centre, mm
+
+OdometryComputerLocalizer localizer = OdometryComputerLocalizer.builder(tracker)
+        .startPose(new Pose2d(-60, -36, 0))
+        .build();
+```
+
+`OdometryComputer` is a five-method interface in `:core` with no FTC types, so it
+fakes cleanly in a unit test. The Pinpoint adapter and goBILDA's driver both live
+in `TeamCode/` rather than `:ftc`, because the driver is not on Maven Central —
+goBILDA ship it as source. It is vendored there (MIT) so the sample compiles;
+`:core` and `:ftc` have no dependency on it.
+
+### Nothing is filtered on top
+
+The device has already fused pods and gyro. Running that through `FusedLocalizer`
+as well would add lag to an estimate better than anything the extra filter knows
+about — and worse, it would shrink the reported covariance as though two
+independent measurements had agreed, when there is only one.
+
+### It fails in ways drive encoders cannot
+
+A pod cable pulls out, the gyro runs away, an I2C read drops. The pose then goes
+stale or wrong while staying **numerically plausible**, which is the dangerous
+case — nothing looks broken.
+
+So the localizer holds the last pose it believed rather than accepting a reading
+the device is disowning, drops `getConfidence()` to zero so the follower scales
+its correction authority back instead of driving hard at a position the robot is
+not in, and treats a NaN as a fault even when the device claims to be healthy.
+
+`hasFaulted()` latches, because a pod that reconnects leaves the pose offset by
+however far the robot moved while it was out and the device reports `READY` again
+regardless. `getHealthDetail()` gives the vendor's own status — 
+`FAULT_X_POD_NOT_DETECTED` tells you which cable to check. Put it on telemetry.
+
+Whether a fault should abort the auto is the OpMode's call, not the library's.
+
+---
+
 ## DriveEncoderLocalizer
 
 Odometry from the drive motors' own encoders, with the IMU optionally overriding
@@ -36,7 +92,7 @@ wheel-derived heading.
 ```java
 DriveEncoderLocalizer localizer = DriveEncoderLocalizer.builder(drivetrain, Clock.system())
         .startPose(new Pose2d(-60, -36, 0))
-        .headingSource(new ImuHeadingSource(imu))
+        .headingSource(myHeadingSensor)      // see HeadingSource below
         .build();
 ```
 
@@ -59,10 +115,14 @@ by their own variance.
 ```java
 FusedLocalizer localizer = FusedLocalizer.builder(drivetrain, Clock.system())
         .startPose(new Pose2d(-60, -36, 0))
-        .headingSource(new ImuHeadingSource(imu))
+        .headingSource(myHeadingSensor)
         .headingVariance(1e-4)     // ~0.6 degrees of sigma
         .build();
 ```
+
+Use this when you have drive encoders and a *separate* heading sensor. With an
+odometry computer, use `OdometryComputerLocalizer` instead — it is both simpler
+and more accurate.
 
 ### Why a filter instead of resetPose()
 
@@ -128,17 +188,19 @@ public interface HeadingSource {
 }
 ```
 
-`ImuHeadingSource` wraps the Control Hub IMU and **unwraps** its reading
-internally. The SDK reports yaw in (-180°, 180°]; handing that straight to the
-localizer makes a robot spinning past 180° appear to snap a full turn backwards
-in one loop. Differences are accumulated instead, giving a continuous heading.
+**No implementation ships.** The Control Hub IMU adapter was removed
+deliberately; supply your own from whatever sensor you trust — an odometry
+computer's heading, a separately-wired IMU, or two parallel dead wheels via
+`(leftDistance − rightDistance) / trackWidth`.
 
-The IMU must already be initialised with your hub's orientation before this is
-constructed — the library takes it as it finds it, because the orientation
-depends on how the hub is bolted to the robot.
+Two things your implementation must get right:
 
-Whatever the gyro reads at the first `update()` is calibrated against the
-configured `startPose` heading. That is what puts the estimate in field
+- **Return a continuous angle, not a wrapped one.** If your sensor reports yaw in
+  (−180°, 180°], accumulate the differences yourself. Handing the wrapped value
+  straight over makes a robot spinning past 180° appear to snap a full turn
+  backwards in a single loop.
+- **Any fixed offset is fine.** Whatever it reads at the first `update()` is
+  calibrated against the configured `startPose` heading. That is what puts the estimate in field
 coordinates rather than relative to power-on — the IMU's own zero is arbitrary
 and never appears in a pose.
 

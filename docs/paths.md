@@ -23,7 +23,7 @@ Absolute coordinates cannot be inferred from encoders, so the localizer needs a
 ```java
 FusedLocalizer localizer = FusedLocalizer.builder(drivetrain, Clock.system())
         .startPose(new Pose2d(-60, -36, 0))    // where the robot is placed
-        .headingSource(new ImuHeadingSource(imu))
+        .startPose(new Pose2d(-60, -36, 0))
         .build();
 ```
 

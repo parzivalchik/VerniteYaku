@@ -81,17 +81,23 @@ robot's outside dimensions.
 
 ---
 
-## 3. IMU
+## 3. Odometry computer
 
-- [ ] The IMU is initialised with your hub's actual orientation before
-      `ImuHeadingSource` is constructed. The library takes it as it finds it.
-- [ ] Print `heading.getHeadingRadians()` and rotate the robot 90° CCW by hand:
-      the value increases by about π/2. If it decreases, your hub orientation is
-      wrong.
-- [ ] Spin the robot slowly through more than a full turn. The value keeps
-      climbing past π rather than jumping — that is the unwrapping working. A
-      jump here means something is wrapping the value before it reaches the
-      library.
+The Control Hub's built-in IMU is not used anywhere in this library. Heading
+comes from the Pinpoint, which carries its own gyro.
+
+- [ ] Pod offsets in `PinpointOdometryComputer` match where your pods actually
+      sit relative to the tracking centre, in millimetres.
+- [ ] `resetPosAndIMU()` runs in init with the robot **stationary**. It
+      recalibrates the gyro; moving during it poisons every heading afterwards.
+- [ ] `getHealthDetail()` reads `READY` before you press start. `CALIBRATING`
+      means wait; `FAULT_X_POD_NOT_DETECTED` names the cable to check.
+- [ ] Push the robot forward by hand: x rises. Push it left: y rises. A reversed
+      pod looks exactly like a robot that drives backwards for no reason — fix
+      it with `setEncoderDirections`, not with a minus sign elsewhere.
+- [ ] Rotate 90° CCW by hand: heading increases by about π/2.
+- [ ] Spin slowly through more than a full turn and back. The pose should return
+      to roughly where it started.
 
 ---
 
@@ -225,7 +231,8 @@ Remember the library takes no action on a stall. Decide what yours should do.
 | Spins instead of driving forward | Motor reversal (§1) |
 | Strafes the wrong way | Roller pattern / front-back pair swap (§1) |
 | Drives right distance, wrong scale | `ticksPerRevolution`, `wheelRadius` (§2) |
-| Pose heading drifts fast | IMU orientation, or no `HeadingSource` (§3, §4) |
+| Pose heading drifts fast | Pod offsets or directions wrong (§3) |
+| Pose frozen mid-auto | A pod unplugged — check `getHealthDetail()` (§3) |
 | Right shape, wrong place on the field | `startPose` is wrong (§4) |
 | Whole auto mirrored | +x points at the opposite wall — `rotated180()` the plan (§4) |
 | Tracks fine slow, drifts off fast | `kV` too low — wheels saturating (§5) |

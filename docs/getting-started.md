@@ -92,9 +92,16 @@ public class MyAuto extends LinearOpMode {
         // 2. Say where the robot is. Coordinates are absolute field positions,
         //    so the starting spot has to be measured and given -- it cannot be
         //    worked out from the encoders.
-        FusedLocalizer localizer = FusedLocalizer.builder(drivetrain, Clock.system())
+        //
+        //    PinpointOdometryComputer and goBILDA's driver both live in
+        //    TeamCode, not in this library -- see docs/localization.md.
+        OdometryComputer tracker = new PinpointOdometryComputer(
+                hardwareMap, "pinpoint",
+                GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD,
+                -84.0, -168.0);          // pod offsets from tracking centre, mm
+
+        OdometryComputerLocalizer localizer = OdometryComputerLocalizer.builder(tracker)
                 .startPose(new Pose2d(-60, -36, 0))
-                .headingSource(new ImuHeadingSource(hardwareMap.get(IMU.class, "imu")))
                 .build();
 
         // 3. Say how hard to drive and how hard to correct.
@@ -163,7 +170,7 @@ Worth having on telemetry from the first run:
 | `getPose()` | Where the library thinks the robot is |
 | `getPositionError()` | Distance from the profile's current setpoint |
 | `getCorrectionAuthority()` | 1.0 while tracking; rises when fighting back |
-| `getPoseConfidence()` | How much the localizer trusts itself |
+| `getPoseConfidence()` | How much the localizer trusts itself — 0 if a pod dropped |
 
 ---
 
