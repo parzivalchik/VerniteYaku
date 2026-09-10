@@ -7,6 +7,7 @@
 | [Tuning](tuning.md) | Every constant, what it does, and what to set it to |
 | [Localization](localization.md) | Odometry, the EKF, and how vision will fold in |
 | [Commands](commands.md) | Sequencing an auto — optional, and how to skip it |
+| [Holding a pose](../TeamCode/src/main/java/org/firstinspires/ftc/teamcode/ExampleHoldPositionOpMode.java) | `PoseHolder` — staying put while a mechanism runs |
 | [Architecture](architecture.md) | How the layers fit together, for contributors |
 | [Migrating](migrating.md) | Coming from Pedro Pathing or Road Runner |
 | [Bring-up](../BRINGUP.md) | Getting this onto a real robot for the first time |

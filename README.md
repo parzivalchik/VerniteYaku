@@ -59,6 +59,10 @@ while (opModeIsActive() && follower.isBusy()) {
 
 The full version, with telemetry and comments, is in
 [`ExampleAutoOpMode`](TeamCode/src/main/java/org/firstinspires/ftc/teamcode/ExampleAutoOpMode.java).
+[`ExampleHoldPositionOpMode`](TeamCode/src/main/java/org/firstinspires/ftc/teamcode/ExampleHoldPositionOpMode.java)
+shows holding a pose while a mechanism runs, and
+[`ExampleTunedAutoOpMode`](TeamCode/src/main/java/org/firstinspires/ftc/teamcode/ExampleTunedAutoOpMode.java)
+adds online tuning and stall detection.
 
 ## Documentation
 

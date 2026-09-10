@@ -79,6 +79,22 @@ hand it over. Calling `run()` after it finishes is a no-op, not a restart.
 | `Commands.deadline(first, ...)` | Finishes with `first`; the rest are interrupted |
 | `Commands.either(cond, a, b)` | Picks a branch when it starts |
 
+`HoldPositionCommand` sits alongside `FollowPathCommand`. It never finishes on
+its own — that is what holding means — so give it a condition or run it as the
+losing side of a `deadline`:
+
+```java
+Commands.deadline(
+        Commands.sequence(                    // decides how long the hold lasts
+                Commands.run(arm::raise),
+                Commands.waitUntil(arm::atTop)),
+        new HoldPositionCommand(holder, scoringPose))
+```
+
+`HoldPositionCommand.holdCurrentPose(holder, until)` captures wherever the robot
+actually is when it starts, rather than a pose fixed in advance — useful straight
+after a path, where the exact stopping point is whatever the follower achieved.
+
 Fluent equivalents: `andThen`, `alongWith`, `raceWith`, `withTimeout(s, clock)`.
 
 ```java

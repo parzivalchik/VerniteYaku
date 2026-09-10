@@ -42,7 +42,7 @@ while (opModeIsActive() && follower.isBusy()) {
 | `Point(x, y, Point.CARTESIAN)` | `new Point(x, y)`, or `Point.of(x, y, unit)` |
 | Heading in `Math.toRadians(...)` | Same — radians throughout |
 | `follower.setStartingPose(...)` | `localizer` builder's `.startPose(...)` |
-| `follower.holdPoint(...)` | Not built. Use a one-point path or hold position yourself |
+| `follower.holdPoint(...)` | `PoseHolder`, or `HoldPositionCommand` |
 | `FollowerConstants` static fields | An immutable builder, per-follower |
 
 **Check where your origin is.** Both are field frames, so a Pedro path ports
@@ -106,7 +106,7 @@ Be aware before committing to a port:
   nothing behind it.
 - **No tank or swerve.** The `Kinematics` interface allows them; only mecanum is
   implemented.
-- **No holdPoint / turnTo primitives.** Express them as short paths.
+- **No turnTo primitive.** Express a turn as a short path with a heading sweep. Holding a pose *is* built — see `PoseHolder`.
 - **No trajectory markers.** Sequence with the command layer instead.
 - **No dashboard integration.** Telemetry is yours to wire up.
 - **Not yet run on real hardware.** See [BRINGUP.md](../BRINGUP.md).
